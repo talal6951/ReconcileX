@@ -47,10 +47,18 @@ const SYNONYMS: Record<keyof Omit<ColumnMapping, "dateFormat" | "decimalSeparato
   description: ["description", "narrative", "details", "memo", "particulars", "transaction details", "remarks"],
   externalId: ["transaction id", "txn id", "id", "transaction reference", "bank reference", "external id", "entry id", "journal id"],
   counterparty: ["counterparty", "payee", "payer", "customer", "vendor", "supplier", "name", "beneficiary"],
+  balance: ["balance", "running balance", "closing balance", "ledger balance", "available balance"],
 };
 
 function canon(h: string): string {
   return h.toLowerCase().replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+const KNOWN_HEADERS = new Set([...Object.values(SYNONYMS).flat(), "balance", "running balance", "paid in", "paid out", "type"]);
+
+/** Number of cells that look like a known statement column header (used to locate header rows in sheets/PDFs). */
+export function headerScore(cells: readonly string[]): number {
+  return cells.filter((c) => KNOWN_HEADERS.has(canon(c))).length;
 }
 
 export interface MappingSuggestion {
@@ -122,7 +130,7 @@ export interface NormalizeResult {
  * Convert raw CSV rows into validated transactions. Validation is strict:
  * any invalid row is reported and the caller must not proceed with a partial import.
  */
-export function normalizeRows(side: Side, headers: string[], rows: string[][], mapping: ColumnMapping): NormalizeResult {
+export function normalizeRows(side: Side, headers: string[], rows: string[][], mapping: ColumnMapping, opts: { lines?: readonly number[] } = {}): NormalizeResult {
   const errors: RowError[] = [];
   const transactions: Transaction[] = [];
   const idx = (c?: string) => (c ? headers.indexOf(c) : -1);
@@ -133,7 +141,8 @@ export function normalizeRows(side: Side, headers: string[], rows: string[][], m
   const get = (r: string[], i: number) => (i >= 0 ? (r[i] ?? "").trim() : "");
 
   rows.forEach((r, n) => {
-    const line = n + 2;
+    // Source line: the real sheet row / statement line when known, else the CSV line (header = 1).
+    const line = opts.lines?.[n] ?? n + 2;
     const rowErrors: RowError[] = [];
     for (const v of r) {
       if (v.length > MAX_FIELD_LENGTH) rowErrors.push({ line, message: `Field exceeds ${MAX_FIELD_LENGTH} characters` });

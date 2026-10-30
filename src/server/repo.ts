@@ -20,10 +20,29 @@ import type { DB } from "./db";
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_REPORTED_ERRORS = 200;
 
+/** Provenance of a confirmed statement import (stored on the dataset and in the audit trail). */
+export interface ImportProvenance {
+  kind: "csv" | "xlsx" | "pdf";
+  /** SHA-256 of the ORIGINAL uploaded file bytes. */
+  sourceSha256: string;
+  sourceBytes: number;
+  /** Extraction report: warnings, balance check, excluded rows, sheet/pages. JSON-serialisable. */
+  extraction: Record<string, unknown>;
+  confirmedBy: string;
+  confirmedAt: string;
+}
+
+/**
+ * One side of a reconciliation: either raw CSV text (synthetic demo, tests) or a
+ * table that has been extracted, signature-verified and confirmed by the user.
+ */
 export interface ImportSide {
   filename: string;
-  csv: string;
   mapping: ColumnMapping;
+  csv?: string;
+  /** Confirmed rows (excluded rows already removed) with their original 1-based row numbers. */
+  table?: { headers: string[]; rows: string[][]; lines: number[] };
+  provenance?: ImportProvenance;
 }
 
 export type CreateRunOutcome =
@@ -66,18 +85,31 @@ export function createRun(
   const parsed: Record<Side, Transaction[]> = { bank: [], ledger: [] };
   const errors: Extract<CreateRunOutcome, { ok: false }>["errors"] = [];
 
+  const contentHash: Record<Side, string> = { bank: "", ledger: "" };
   for (const side of ["bank", "ledger"] as const) {
     const s = input[side];
-    if (Buffer.byteLength(s.csv, "utf8") > MAX_UPLOAD_BYTES) {
-      errors.push({ side, problems: [`File exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`], rowErrors: [], totalRowErrors: 0 });
-      continue;
+    let headers: string[], rows: string[][], lines: number[] | undefined;
+    let rowErrors: RowError[] = [];
+    if (s.table) {
+      ({ headers, rows, lines } = s.table);
+      if (lines.length !== rows.length) throw new ValidationError("Row numbering does not match the rows provided");
+      contentHash[side] = sha256(JSON.stringify([headers, rows]));
+    } else if (typeof s.csv === "string") {
+      if (Buffer.byteLength(s.csv, "utf8") > MAX_UPLOAD_BYTES) {
+        errors.push({ side, problems: [`File exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`], rowErrors: [], totalRowErrors: 0 });
+        continue;
+      }
+      const csv = parseCsv(s.csv);
+      ({ headers, rows } = csv);
+      rowErrors = [...csv.errors];
+      contentHash[side] = sha256(s.csv);
+    } else {
+      throw new ValidationError(`No data provided for the ${side} side`);
     }
-    const csv = parseCsv(s.csv);
-    const problems = validateMapping(csv.headers, s.mapping);
-    if (csv.rows.length === 0) problems.push("File has no data rows");
-    let rowErrors = [...csv.errors];
-    if (problems.length === 0 && csv.errors.length === 0) {
-      const norm = normalizeRows(side, csv.headers, csv.rows, s.mapping);
+    const problems = validateMapping(headers, s.mapping);
+    if (rows.length === 0) problems.push("File has no data rows");
+    if (problems.length === 0 && rowErrors.length === 0) {
+      const norm = normalizeRows(side, headers, rows, s.mapping, { lines });
       rowErrors = norm.errors;
       parsed[side] = norm.transactions;
     }
@@ -93,18 +125,49 @@ export function createRun(
 
   db.transaction(() => {
     const datasetIds: Record<Side, string> = { bank: randomUUID(), ledger: randomUUID() };
-    const insDs = db.prepare("INSERT INTO datasets (id, organization_id, side, filename, sha256, row_count, mapping_json, created_at) VALUES (?,?,?,?,?,?,?,?)");
+    const insDs = db.prepare(
+      `INSERT INTO datasets (id, organization_id, side, filename, sha256, row_count, mapping_json, created_at,
+         source_kind, source_sha256, source_bytes, extraction_json, confirmed_by, confirmed_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    );
     const insTx = db.prepare(
       "INSERT INTO transactions (dataset_id, id, source_line, external_id, date, day, amount_minor, currency, reference, description, counterparty) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
     );
     for (const side of ["bank", "ledger"] as const) {
       const s = input[side];
-      const fileHash = sha256(s.csv);
-      insDs.run(datasetIds[side], orgId, side, s.filename.slice(0, 200), fileHash, parsed[side].length, JSON.stringify(s.mapping), now);
+      const p = s.provenance;
+      const fileHash = contentHash[side];
+      insDs.run(
+        datasetIds[side], orgId, side, s.filename.slice(0, 200), fileHash, parsed[side].length, JSON.stringify(s.mapping), now,
+        p?.kind ?? null, p?.sourceSha256 ?? null, p?.sourceBytes ?? null, p ? JSON.stringify(p.extraction) : null, p?.confirmedBy ?? null, p?.confirmedAt ?? null,
+      );
       for (const t of parsed[side]) {
         insTx.run(datasetIds[side], t.id, t.sourceLine, t.externalId, t.date, t.day, t.amountMinor.toString(), t.currency, t.reference, t.description, t.counterparty);
       }
-      appendAudit(db, { orgId, actor, action: "dataset.imported", runId, entityType: "dataset", entityId: datasetIds[side], details: { side, filename: s.filename, sha256: fileHash, rows: parsed[side].length } });
+      appendAudit(db, {
+        orgId,
+        actor,
+        action: "dataset.imported",
+        runId,
+        entityType: "dataset",
+        entityId: datasetIds[side],
+        details: {
+          side,
+          filename: s.filename,
+          sha256: fileHash,
+          rows: parsed[side].length,
+          ...(p && {
+            sourceKind: p.kind,
+            sourceSha256: p.sourceSha256,
+            sourceBytes: p.sourceBytes,
+            confirmed: true,
+            confirmedBy: p.confirmedBy,
+            confirmedAt: p.confirmedAt,
+            excludedRows: Array.isArray(p.extraction.excluded) ? p.extraction.excluded.length : 0,
+            balanceCheck: (p.extraction.balanceCheck as { status?: string } | undefined)?.status ?? "unavailable",
+          }),
+        },
+      });
     }
     db.prepare(
       "INSERT INTO runs (id, organization_id, name, bank_dataset_id, ledger_dataset_id, engine_version, model_version, config_json, metrics_json, duplicate_groups_json, source, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",

@@ -2,7 +2,12 @@ import "server-only";
 import { defaultModel } from "@/engine/default-model";
 import { createInvestigator } from "@/engine/investigate";
 import { DEMO_BANK_MAPPING, DEMO_LEDGER_MAPPING, generateSynthetic } from "@/engine/synthetic";
-import type { ColumnMapping } from "@/engine/types";
+import { suggestMapping } from "@/engine/csv";
+import type { Side } from "@/engine/types";
+import { confirmImportRun, type ConfirmSide } from "./imports/confirm";
+import { extractStatement } from "./imports/extract";
+import { sampleLedgerCsv, samplePdf, sampleStatement, sampleXlsx } from "./imports/samples";
+import { signPreview } from "./imports/token";
 import type { ExceptionDTO, MatchDTO, TxDTO, WorkspaceDTO } from "@/lib/dto";
 import { appendAudit, auditFacets, exportAuditEvents, listAudit, searchAudit, verifyAuditChain, type AuditQuery } from "./audit";
 import { getDb } from "./db";
@@ -38,11 +43,31 @@ export function runSummary(ctx: WorkspaceContext, runId: string) {
   return getRunSummary(getDb(), ctx.orgId, runId);
 }
 
-export function createUploadRun(
-  ctx: WorkspaceContext,
-  input: { name: string; bank: { filename: string; csv: string; mapping: ColumnMapping }; ledger: { filename: string; csv: string; mapping: ColumnMapping } },
-) {
-  return createRun(getDb(), { ...input, orgId: ctx.orgId, actor: ctx.actor, model: defaultModel, source: "upload" });
+/**
+ * Step 1 of an upload: extract a file into a signed, NOT-yet-saved preview.
+ * Nothing is persisted here.
+ */
+export async function extractForPreview(ctx: WorkspaceContext, input: { bytes: Uint8Array; filename: string; side: Side; sheet?: string }) {
+  const table = await extractStatement(input.bytes, input.filename, { sheet: input.sheet });
+  const suggestion = suggestMapping(table.headers, table.rows);
+  // No currency column: use the currency the document itself states (exactly one code found), if any.
+  if (!suggestion.mapping.currency && table.detectedCurrency) suggestion.mapping.defaultCurrency = table.detectedCurrency;
+  const token = signPreview(table, { orgId: ctx.orgId, userId: ctx.userId, side: input.side });
+  return { extraction: table, suggestion, token };
+}
+
+/** Step 2: save a reviewed, explicitly confirmed preview (signature re-verified server-side). */
+export function confirmUpload(ctx: WorkspaceContext, input: { name: string; bank: ConfirmSide; ledger: ConfirmSide }) {
+  return confirmImportRun(getDb(), { orgId: ctx.orgId, userId: ctx.userId, actor: ctx.actor }, input, defaultModel);
+}
+
+/** Synthetic sample files (clearly labelled, no real data) for trying the import flow. */
+export async function sampleFile(file: "bank-pdf" | "bank-xlsx" | "ledger-csv", seed: number, events: number) {
+  checkDemo(seed, events);
+  if (file === "ledger-csv") return { bytes: new TextEncoder().encode(sampleLedgerCsv(seed, events)), filename: `synthetic-ledger-${seed}.csv`, contentType: "text/csv; charset=utf-8" };
+  const s = sampleStatement(seed, events);
+  if (file === "bank-xlsx") return { bytes: await sampleXlsx(s), filename: `synthetic-statement-${seed}.xlsx`, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+  return { bytes: await samplePdf(s, { wrapEvery: 7 }), filename: `synthetic-statement-${seed}.pdf`, contentType: "application/pdf" };
 }
 
 export const DEMO_LIMITS = { minEvents: 50, maxEvents: 12_000 };

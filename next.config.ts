@@ -10,7 +10,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Lets a production build run alongside the dev preview without sharing .next.
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  serverExternalPackages: ["better-sqlite3"],
+  // Native / large server-only parsers are loaded from node_modules, not bundled.
+  serverExternalPackages: ["better-sqlite3", "pdfjs-dist", "exceljs", "pdf-lib"],
   poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

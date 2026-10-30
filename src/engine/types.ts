@@ -35,6 +35,8 @@ export interface ColumnMapping {
   description?: string;
   externalId?: string;
   counterparty?: string;
+  /** Running balance column — used only to verify the statement, never stored as a transaction. */
+  balance?: string;
   dateFormat: DateFormat;
   decimalSeparator: DecimalSeparator;
   /** Flip signs so that inflows are positive on both sides. */

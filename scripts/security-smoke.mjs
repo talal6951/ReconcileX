@@ -19,12 +19,14 @@ function client() {
   const jar = new Map();
   return {
     jar,
-    async req(path, { method = "GET", body, headers = {}, raw = false } = {}) {
+    async req(path, { method = "GET", body, form, headers = {}, raw = false, binary = false } = {}) {
       const h = { ...headers };
       if (jar.size) h.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
       if (body !== undefined) h["content-type"] = "application/json";
-      if (method !== "GET") h.origin ??= ORIGIN;
-      const res = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), redirect: "manual" });
+      if (method !== "GET" && !("origin" in headers)) h.origin = ORIGIN;
+      const payload = form ?? (body === undefined ? undefined : JSON.stringify(body));
+      const res = await fetch(BASE + path, { method, headers: h, body: payload, redirect: "manual" });
+      if (binary) return { status: res.status, bytes: new Uint8Array(await res.arrayBuffer()), headers: res.headers };
       for (const c of res.headers.getSetCookie?.() ?? []) {
         const [pair] = c.split(";");
         const i = pair.indexOf("=");
@@ -178,10 +180,59 @@ const leaks = (text) => /amountMinor|"transactions"|bankTotalMinor|Match ID,|BTX
   check(hijack.status !== 200, `attacker cannot activate victim's workspace (${hijack.status})`);
   const after = await attacker.c.req(`/api/runs/${runId}/workspace`);
   check(after.status === 404 || after.status === 403, `still no access after hijack attempt (${after.status})`);
+  // The failed switch clears the attacker's active workspace (fail-closed); re-select their OWN one for later tests.
+  const restore = await attacker.c.req("/api/auth/organization/set-active", { method: "POST", body: { organizationId: attacker.orgId } });
+  check(restore.status === 200, `attacker can re-select their own workspace (${restore.status})`);
   // Victim data untouched by attempted mutations.
   const victimAgain = await victim.c.req(`/api/runs/${runId}/workspace`);
   const m1 = victimAgain.json?.matches?.find((m) => m.id === "M-00001");
   check(m1 && m1.status === m1.originalStatus, "victim's match M-00001 unchanged");
+
+  console.log("\n— Statement imports —");
+  const fileForm = (bytes, name, side) => {
+    const f = new FormData();
+    f.set("file", new Blob([bytes]), name);
+    f.set("side", side);
+    return f;
+  };
+  const tinyCsv = new TextEncoder().encode("Date,Description,Amount\n2024-07-01,Test,1.00\n");
+  const anonExtract = await anon.req("/api/imports/extract", { method: "POST", form: fileForm(tinyCsv, "t.csv", "bank") });
+  check(anonExtract.status === 401, `unauthenticated extract → ${anonExtract.status}`);
+  const anonSample = await anon.req("/api/imports/sample?file=bank-pdf");
+  check(anonSample.status === 401, `unauthenticated sample download → ${anonSample.status}`);
+  const noOrigin = await victim.c.req("/api/imports/extract", { method: "POST", form: fileForm(tinyCsv, "t.csv", "bank"), headers: { origin: "http://evil.example" } });
+  check(noOrigin.status === 403, `cross-origin extract rejected → ${noOrigin.status}`);
+
+  const pdf = await victim.c.req("/api/imports/sample?file=bank-pdf&seed=42&events=200", { binary: true });
+  const ledgerCsv = await victim.c.req("/api/imports/sample?file=ledger-csv&seed=42&events=200", { binary: true });
+  check(pdf.status === 200 && new TextDecoder().decode(pdf.bytes.slice(0, 5)) === "%PDF-", `victim downloads synthetic PDF sample (${pdf.bytes.length} bytes)`);
+  const exBank = await victim.c.req("/api/imports/extract", { method: "POST", form: fileForm(pdf.bytes, "statement.pdf", "bank") });
+  const exLedger = await victim.c.req("/api/imports/extract", { method: "POST", form: fileForm(ledgerCsv.bytes, "ledger.csv", "ledger") });
+  check(exBank.status === 200 && exBank.json?.extraction?.kind === "pdf" && exBank.json.extraction.rows.length > 0, `victim extracts PDF preview (${exBank.json?.extraction?.rows?.length} rows)`);
+  const runsBeforeExtract = (await victim.c.req("/api/runs")).json.runs.length;
+  check(exLedger.status === 200, "victim extracts ledger preview");
+  check((await victim.c.req("/api/runs")).json.runs.length === runsBeforeExtract, "extraction alone saves nothing");
+  const confirmSide = (ex, mapping) => ({ token: ex.token, extraction: { headers: ex.extraction.headers, rows: ex.extraction.rows, locators: ex.extraction.locators, rowFlags: ex.extraction.rowFlags, warnings: ex.extraction.warnings, balances: ex.extraction.balances }, mapping, excludedRows: [], confirmed: true });
+  const bankMapping = { ...exBank.json.suggestion.mapping, defaultCurrency: "USD" };
+  const body = { name: "Smoke import", bank: confirmSide(exBank.json, bankMapping), ledger: confirmSide(exLedger.json, exLedger.json.suggestion.mapping) };
+
+  const attackerRunsBefore = (await attacker.c.req("/api/runs")).json.runs.length;
+  const replay = await attacker.c.req("/api/runs", { method: "POST", body });
+  check(replay.status === 400 && /different user or workspace/.test(replay.text), `attacker replaying victim's signed preview is rejected (${replay.status})`);
+  check((await attacker.c.req("/api/runs")).json.runs.length === attackerRunsBefore, "replay created nothing in attacker's workspace");
+  const tampered = structuredClone(body);
+  const credit = tampered.bank.extraction.headers.indexOf("Credit");
+  const ti = tampered.bank.extraction.rows.findIndex((r) => r[credit]);
+  tampered.bank.extraction.rows[ti][credit] = "999,999.99";
+  const tamperRes = await victim.c.req("/api/runs", { method: "POST", body: tampered });
+  check(tamperRes.status === 400 && /differ from the extracted preview/.test(tamperRes.text), `victim's tampered amount is rejected (${tamperRes.status})`);
+  const unconfirmed = structuredClone(body);
+  unconfirmed.bank.confirmed = false;
+  const unconfRes = await victim.c.req("/api/runs", { method: "POST", body: unconfirmed });
+  check(unconfRes.status === 400, `unconfirmed preview is rejected (${unconfRes.status})`);
+  check((await victim.c.req("/api/runs")).json.runs.length === runsBeforeExtract, "rejected imports saved nothing");
+  const good = await victim.c.req("/api/runs", { method: "POST", body });
+  check(good.status === 201 && /^RUN-/.test(good.json?.runId ?? ""), `victim's confirmed PDF import succeeds (${good.status})`);
 
   console.log("\n— Legacy run with no workspace —");
   const legacy = "RUN-20261030-8331069B";

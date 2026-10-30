@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { applyImportsMigration } from "./migrations/imports";
 
 /**
  * Local SQLite store. Money is stored as TEXT holding the integer minor-unit
@@ -134,6 +135,8 @@ function migrate(db: DB) {
     CREATE INDEX IF NOT EXISTS runs_org ON runs(organization_id, created_at);
     CREATE INDEX IF NOT EXISTS audit_org ON audit_events(organization_id, seq);
   `);
+  // Stage 2: statement-import provenance columns (additive, idempotent).
+  applyImportsMigration(db);
 }
 
 export function openDatabase(file: string): DB {
@@ -149,7 +152,9 @@ const globalForDb = globalThis as unknown as { __reconcilexDb?: DB };
 /** Process-wide connection (survives Next.js dev hot reloads). */
 export function getDb(): DB {
   if (!globalForDb.__reconcilexDb) {
-    const file = process.env.RECONCILEX_DB_PATH ?? path.join(process.cwd(), "data", "reconcilex.db");
+    const configured = process.env.RECONCILEX_DB_PATH;
+    if (configured !== undefined && configured.trim() === "") throw new Error("RECONCILEX_DB_PATH is set but empty");
+    const file = configured ?? path.join(process.cwd(), "data", "reconcilex.db");
     globalForDb.__reconcilexDb = openDatabase(file);
   }
   return globalForDb.__reconcilexDb;

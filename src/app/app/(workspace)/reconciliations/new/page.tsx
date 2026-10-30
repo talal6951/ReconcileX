@@ -1,4 +1,4 @@
-import { NewRun } from "@/components/new-run";
+import { ImportWizard } from "@/components/imports/import-wizard";
 import { PageHeader } from "@/components/ui";
 import { requireWorkspacePage } from "@/server/session";
 
@@ -12,9 +12,9 @@ export default async function NewReconciliation() {
       <PageHeader
         eyebrow="New reconciliation"
         title="Import bank and ledger data"
-        description="Map columns, validate every row, then reconcile. Files are parsed in your browser for preview and re-validated on the server; any invalid row blocks the import rather than being silently skipped."
+        description="Upload a bank statement and a ledger export (CSV, Excel or text-based PDF). Review every extracted transaction, resolve flagged rows, and confirm — nothing is saved until you do."
       />
-      <NewRun />
+      <ImportWizard />
     </>
   );
 }
