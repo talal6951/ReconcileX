@@ -179,7 +179,7 @@ function totalsByCurrency(bank: Transaction[], ledger: Transaction[], matchedBan
   const get = (c: string) => {
     let t = map.get(c);
     if (!t) {
-      t = { currency: c, bankCount: 0, ledgerCount: 0, bankTotalMinor: 0n, ledgerTotalMinor: 0n, matchedBankMinor: 0n, unmatchedBankMinor: 0n, unmatchedLedgerMinor: 0n };
+      t = { currency: c, bankCount: 0, ledgerCount: 0, matchedBankCount: 0, bankTotalMinor: 0n, ledgerTotalMinor: 0n, matchedBankMinor: 0n, unmatchedBankMinor: 0n, unmatchedLedgerMinor: 0n };
       map.set(c, t);
     }
     return t;
@@ -188,8 +188,10 @@ function totalsByCurrency(bank: Transaction[], ledger: Transaction[], matchedBan
     const t = get(b.currency);
     t.bankCount++;
     t.bankTotalMinor += b.amountMinor;
-    if (matchedBank.has(b.id)) t.matchedBankMinor += b.amountMinor;
-    else t.unmatchedBankMinor += b.amountMinor;
+    if (matchedBank.has(b.id)) {
+      t.matchedBankMinor += b.amountMinor;
+      t.matchedBankCount++;
+    } else t.unmatchedBankMinor += b.amountMinor;
   }
   for (const l of ledger) {
     const t = get(l.currency);
@@ -489,6 +491,11 @@ export function reconcile(bankTxs: Transaction[], ledgerTxs: Transaction[], opts
       splitMatches: numbered.filter((m) => m.method === "split_sum").length,
       autoVerifiedRate: verifiedBank.size / nb,
       proposedCoverageRate: matchedBank.size / nb,
+      bankRowsByStatus: {
+        verified: verifiedBank.size,
+        suggested: numbered.filter((m) => m.status === "suggested").reduce((s, m) => s + m.bankIds.length, 0),
+        needs_review: numbered.filter((m) => m.status === "needs_review").reduce((s, m) => s + m.bankIds.length, 0),
+      },
       unmatchedBank: bankTxs.length - matchedBank.size,
       unmatchedLedger: ledgerTxs.length - matchedLedger.size,
       exceptionsByType,

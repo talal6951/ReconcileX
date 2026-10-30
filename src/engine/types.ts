@@ -114,6 +114,8 @@ export interface CurrencyTotals {
   currency: string;
   bankCount: number;
   ledgerCount: number;
+  /** Bank rows in this currency covered by any proposed match. */
+  matchedBankCount: number;
   bankTotalMinor: bigint;
   ledgerTotalMinor: bigint;
   matchedBankMinor: bigint;
@@ -132,6 +134,8 @@ export interface RunMetrics {
   autoVerifiedRate: number;
   /** Bank rows covered by any proposed match / bank rows. */
   proposedCoverageRate: number;
+  /** Exact bank-row counts by the engine status of the match covering them. */
+  bankRowsByStatus: { verified: number; suggested: number; needs_review: number };
   unmatchedBank: number;
   unmatchedLedger: number;
   exceptionsByType: Record<ExceptionType, number>;
