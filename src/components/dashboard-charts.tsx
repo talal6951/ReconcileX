@@ -1,15 +1,7 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-
-export const SERIES = {
-  verified: "#0f8a5f",
-  approved: "#3aa57f",
-  suggested: "#2458e6",
-  review: "#d08a0e",
-  rejected: "#c8322f",
-  unmatched: "#c3ccdb",
-};
+import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { SERIES } from "@/lib/chart-colors";
 
 const axis = { fontSize: 11, fill: "#6b7a90" };
 const tooltipStyle = { fontSize: 12, borderRadius: 8, border: "1px solid #e3e8f0", boxShadow: "0 8px 24px -8px rgba(14,26,43,.2)" };
@@ -25,7 +17,7 @@ export interface RunBar {
 export function CoverageChart({ data }: { data: RunBar[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }} barCategoryGap="28%">
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }} barCategoryGap="28%" maxBarSize={56}>
         <CartesianGrid vertical={false} stroke="#eef1f6" />
         <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} />
         <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
@@ -57,20 +49,32 @@ export function ExceptionChart({ data }: { data: { label: string; count: number;
   );
 }
 
+/**
+ * Donut drawn as plain SVG: one circle per segment, each showing its share of the
+ * circumference via stroke-dasharray. (Recharts' Pie ignored per-slice fills here.)
+ */
 export function ReviewDonut({ data }: { data: { name: string; value: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
+  const r = 75;
+  const circumference = 2 * Math.PI * r;
+  const gap = data.length > 1 ? 2 : 0;
+  let offset = 0;
   return (
     <div className="relative h-[200px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius={62} outerRadius={88} paddingAngle={1.5} stroke="none">
-            {data.map((d) => (
-              <Cell key={d.name} fill={d.color} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={tooltipStyle} />
-        </PieChart>
-      </ResponsiveContainer>
+      <svg viewBox="0 0 200 200" className="mx-auto h-[200px] w-[200px] -rotate-90" role="img" aria-label={data.map((d) => `${d.name}: ${d.value}`).join(", ")}>
+        <circle cx="100" cy="100" r={r} fill="none" stroke="#eef1f6" strokeWidth="24" />
+        {total > 0 &&
+          data.map((d) => {
+            const len = (d.value / total) * circumference;
+            const seg = (
+              <circle key={d.name} cx="100" cy="100" r={r} fill="none" stroke={d.color} strokeWidth="24" strokeDasharray={`${Math.max(len - gap, 0)} ${circumference}`} strokeDashoffset={-offset}>
+                <title>{`${d.name}: ${d.value.toLocaleString("en-US")}`}</title>
+              </circle>
+            );
+            offset += len;
+            return seg;
+          })}
+      </svg>
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div className="text-center">
           <div className="tabular text-2xl font-semibold text-ink">{total.toLocaleString("en-US")}</div>

@@ -57,7 +57,7 @@ const KIND_LABEL = { csv: "CSV", xlsx: "Excel workbook", pdf: "PDF statement" } 
 const PAGE = 50;
 type Filter = "all" | "error" | "warning" | "excluded";
 
-export function SideImport({ side, onConfirmed }: { side: Side; onConfirmed: (c: ConfirmedSide | null) => void }) {
+export function SideImport({ side, onConfirmed, onLoaded }: { side: Side; onConfirmed: (c: ConfirmedSide | null) => void; onLoaded?: (loaded: boolean) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; code?: string } | null>(null);
@@ -96,6 +96,7 @@ export function SideImport({ side, onConfirmed }: { side: Side; onConfirmed: (c:
       const e: Extraction = body.extraction;
       setFile(f);
       setExt(e);
+      onLoaded?.(true);
       setToken(body.token);
       setMapping(body.suggestion.mapping);
       setDateCandidates(body.suggestion.dateFormats);
@@ -118,6 +119,7 @@ export function SideImport({ side, onConfirmed }: { side: Side; onConfirmed: (c:
 
   function clear() {
     setExt(null);
+    onLoaded?.(false);
     setFile(null);
     setToken("");
     setError(null);

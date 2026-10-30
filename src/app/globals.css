@@ -136,7 +136,7 @@ textarea:focus {
   outline-offset: 1px;
 }
 
-.table-row:hover {
+.row-hover:hover {
   background: #f7f9fc;
 }
 

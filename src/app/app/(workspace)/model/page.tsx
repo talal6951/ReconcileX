@@ -1,6 +1,7 @@
 import { AlertTriangle, BrainCircuit, CheckCircle2, GitMerge, ListChecks, Split } from "lucide-react";
 import { Calibration, PrCurve } from "@/components/model-charts";
 import { Badge, Card, PageHeader } from "@/components/ui";
+import anomalyEvaluation from "@/engine/model/anomaly-evaluation.json";
 import evaluation from "@/engine/model/evaluation.json";
 import { DEFAULT_CONFIG } from "@/engine/types";
 import { int, METHOD_LABEL, pct } from "@/lib/format";
@@ -186,6 +187,48 @@ export default async function ModelPage() {
             )}
           </>
         )}
+      </Card>
+
+      <Card title="Statistical insights" subtitle="Descriptive statistics shown on each reconciliation’s Insights tab — no training involved">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="text-[13px] leading-relaxed text-ink-2">
+            <h3 className="font-semibold text-ink">Unusual amounts — robust z-score</h3>
+            <p className="mt-1">
+              Within each counterparty’s own history (≥ {anomalyEvaluation.minGroupSize} payments), z = 0.6745·(x − median)/MAD on log amounts. Median and MAD are used because the mean and standard deviation are pulled towards the very outliers being searched for. |z| &gt; {anomalyEvaluation.defaultThreshold} is flagged.
+            </p>
+            <h3 className="mt-4 font-semibold text-ink">First-digit test — Benford’s law</h3>
+            <p className="mt-1">Pearson χ² with 8 degrees of freedom and an exact p-value. A dataset-level indicator only: many legitimate datasets (fixed prices, round amounts) don’t follow Benford.</p>
+          </div>
+          <div>
+            <div className="text-[12px] text-ink-3">
+              Measured on a synthetic benchmark: {int(anomalyEvaluation.benchmark.transactions)} transactions, {int(anomalyEvaluation.benchmark.injectedAnomalies)} injected anomalies
+            </div>
+            <table className="tabular mt-2 w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-ink-3">
+                  <th className="py-1.5 font-semibold">Threshold</th>
+                  <th className="py-1.5 text-right font-semibold">Precision</th>
+                  <th className="py-1.5 text-right font-semibold">Recall</th>
+                  <th className="py-1.5 text-right font-semibold">F1</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalyEvaluation.results.map((r) => (
+                  <tr key={r.threshold} className={`border-b border-line last:border-0 ${r.threshold === anomalyEvaluation.defaultThreshold ? "font-semibold text-ink" : "text-ink-2"}`}>
+                    <td className="py-1.5">
+                      {r.threshold}
+                      {r.threshold === anomalyEvaluation.defaultThreshold ? " (default)" : ""}
+                    </td>
+                    <td className="py-1.5 text-right">{pct(r.precision)}</td>
+                    <td className="py-1.5 text-right">{pct(r.recall)}</td>
+                    <td className="py-1.5 text-right">{pct(r.f1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-[11.5px] text-ink-3">The published 3.5 cut-off is kept even though 4.0 scores higher here — tuning to a self-generated benchmark would overfit to its assumptions.</p>
+          </div>
+        </div>
       </Card>
 
       <Card title="Known limitations">

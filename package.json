@@ -14,7 +14,8 @@
     "train": "tsx scripts/train-model.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test:security": "node scripts/security-smoke.mjs",
-    "db:backup": "tsx scripts/db-backup.ts"
+    "db:backup": "tsx scripts/db-backup.ts",
+    "eval:anomaly": "tsx scripts/evaluate-anomalies.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.14",

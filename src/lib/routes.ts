@@ -11,5 +11,6 @@ export const routes = {
   report: (id: string) => `/app/reconciliations/${encodeURIComponent(id)}/report`,
   model: "/app/model",
   audit: "/app/audit",
+  scenarios: "/app/scenarios",
   settings: "/app/settings",
 } as const;

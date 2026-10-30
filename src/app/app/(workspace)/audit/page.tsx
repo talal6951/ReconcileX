@@ -128,7 +128,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               </thead>
               <tbody>
                 {events.map((e) => (
-                  <tr key={e.seq} className="table-row border-b border-line align-top last:border-0">
+                  <tr key={e.seq} className="row-hover border-b border-line align-top last:border-0">
                     <td className="tabular px-4 py-2.5 text-ink-3">{e.seq}</td>
                     <td className="tabular px-4 py-2.5 whitespace-nowrap text-ink-2">{dateTime(e.ts)}</td>
                     <td className="max-w-[200px] truncate px-4 py-2.5" title={e.actor}>

@@ -44,7 +44,7 @@ export default async function Runs() {
               </thead>
               <tbody className="tabular">
                 {runs.map((r) => (
-                  <tr key={r.id} className="table-row border-b border-line last:border-0">
+                  <tr key={r.id} className="row-hover border-b border-line last:border-0">
                     <td className="px-4 py-3">
                       <Link href={`/app/reconciliations/${r.id}`} className="font-semibold text-ink hover:text-brand">
                         {r.name}

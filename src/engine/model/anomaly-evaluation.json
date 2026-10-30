@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-10-30T17:12:45.987Z",
+  "method": "Modified z-score (Iglewicz & Hoaglin) on ln|amount| within counterparty groups; median/MAD",
+  "defaultThreshold": 3.5,
+  "minGroupSize": 8,
+  "benchmark": {
+    "description": "Synthetic: 40 counterparties × 30 transactions per seed, log-normal amounts (σ=0.25), ~3% replaced by 4–15× higher/lower amounts. Not real-world data.",
+    "seeds": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "transactions": 12000,
+    "injectedAnomalies": 349
+  },
+  "results": [
+    {
+      "threshold": 2.5,
+      "tp": 349,
+      "fp": 245,
+      "fn": 0,
+      "precision": 0.5875420875420876,
+      "recall": 1,
+      "f1": 0.7401908801696713
+    },
+    {
+      "threshold": 3,
+      "tp": 349,
+      "fp": 102,
+      "fn": 0,
+      "precision": 0.7738359201773836,
+      "recall": 1,
+      "f1": 0.8724999999999999
+    },
+    {
+      "threshold": 3.5,
+      "tp": 346,
+      "fp": 36,
+      "fn": 3,
+      "precision": 0.9057591623036649,
+      "recall": 0.9914040114613181,
+      "f1": 0.9466484268125854
+    },
+    {
+      "threshold": 4,
+      "tp": 344,
+      "fp": 14,
+      "fn": 5,
+      "precision": 0.9608938547486033,
+      "recall": 0.9856733524355301,
+      "f1": 0.9731258840169732
+    },
+    {
+      "threshold": 5,
+      "tp": 332,
+      "fp": 2,
+      "fn": 17,
+      "precision": 0.9940119760479041,
+      "recall": 0.9512893982808023,
+      "f1": 0.9721815519765739
+    }
+  ]
+}

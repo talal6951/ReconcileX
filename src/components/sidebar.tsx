@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { BrainCircuit, Building2, ChevronsUpDown, FileClock, LayoutDashboard, Layers, LogOut, Menu, PlusCircle, ShieldCheck, X } from "lucide-react";
+import { BrainCircuit, Building2, ChevronsUpDown, FileClock, FlaskConical, LayoutDashboard, Layers, LogOut, Menu, PlusCircle, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,10 +10,11 @@ import { routes } from "@/lib/routes";
 import { Wordmark } from "./site/brand";
 
 const NAV = [
-  { href: routes.app, label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: routes.app, label: "Home", icon: LayoutDashboard, exact: true },
   { href: routes.newReconciliation, label: "New reconciliation", icon: PlusCircle },
-  { href: routes.reconciliations, label: "Reconciliations", icon: Layers },
-  { href: routes.model, label: "Matching model", icon: BrainCircuit },
+  { href: routes.reconciliations, label: "History", icon: Layers },
+  { href: routes.scenarios, label: "Scenario Lab", icon: FlaskConical },
+  { href: routes.model, label: "How it works", icon: BrainCircuit },
   { href: routes.audit, label: "Audit trail", icon: FileClock },
 ];
 

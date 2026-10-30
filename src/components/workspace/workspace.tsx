@@ -7,23 +7,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ExceptionDTO, MatchDTO, TxDTO, WorkspaceDTO } from "@/lib/dto";
 import { dateTime, EXCEPTION_LABEL, int, METHOD_LABEL, money, ms, pct } from "@/lib/format";
 import { ExceptionBadge, FlagChip, Kpi, PageHeader, StatusBadge } from "../ui";
+import { InsightsPanel } from "./insights-panel";
 import { InvestigationPanel, type Subject } from "./investigation-panel";
 
-type Tab = "review" | "matches" | "exceptions";
+export type Tab = "review" | "matches" | "exceptions" | "insights";
 type SortKey = "id" | "amount" | "score" | "date" | "diff";
 const PAGE = 50;
 
 const abs = (v: bigint) => (v < 0n ? -v : v);
 
-export function Workspace({ runId }: { runId: string }) {
+export function Workspace({ runId, initialTab = "review", initialExceptionType }: { runId: string; initialTab?: Tab; initialExceptionType?: string }) {
   const [data, setData] = useState<WorkspaceDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("review");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [method, setMethod] = useState("all");
   const [currency, setCurrency] = useState("all");
-  const [excType, setExcType] = useState("all");
+  const [excType, setExcType] = useState(initialExceptionType && initialExceptionType in EXCEPTION_LABEL ? initialExceptionType : "all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "id", dir: 1 });
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Subject | null>(null);
@@ -82,7 +83,8 @@ export function Workspace({ runId }: { runId: string }) {
       }
     };
     return [...rows].sort((a, b) => {
-      const ka = key(a), kb = key(b);
+      const ka = key(a),
+        kb = key(b);
       return (ka < kb ? -1 : ka > kb ? 1 : 0) * sort.dir;
     });
   }, [data, tab, status, method, currency, q, sort, textOf, tx]);
@@ -94,9 +96,11 @@ export function Workspace({ runId }: { runId: string }) {
     if (status !== "all") rows = rows.filter((e) => e.status === status);
     if (currency !== "all") rows = rows.filter((e) => e.currency === currency);
     if (q) rows = rows.filter((e) => e.id.toLowerCase().includes(q) || e.message.toLowerCase().includes(q) || textOf([...e.bankIds, ...e.ledgerIds]).includes(q));
-    const key = (e: ExceptionDTO): bigint | string => (sort.key === "amount" || sort.key === "diff" ? BigInt(e.exposureMinor) : sort.key === "date" ? tx[e.bankIds[0] ?? e.ledgerIds[0]!]?.date ?? "" : e.id);
+    const key = (e: ExceptionDTO): bigint | string =>
+      sort.key === "amount" || sort.key === "diff" ? BigInt(e.exposureMinor) : sort.key === "date" ? (tx[e.bankIds[0] ?? e.ledgerIds[0]!]?.date ?? "") : e.id;
     return [...rows].sort((a, b) => {
-      const ka = key(a), kb = key(b);
+      const ka = key(a),
+        kb = key(b);
       return (ka < kb ? -1 : ka > kb ? 1 : 0) * sort.dir;
     });
   }, [data, excType, status, currency, q, sort, textOf, tx]);
@@ -134,7 +138,7 @@ export function Workspace({ runId }: { runId: string }) {
   }
 
   const exportHref = (format: string) => `/api/runs/${encodeURIComponent(runId)}/export?format=${format}`;
-  const toggleSort = (key: SortKey) => setSort((cur) => ({ key, dir: cur.key === key ? ((-cur.dir) as 1 | -1) : key === "id" || key === "date" ? 1 : -1 }));
+  const toggleSort = (key: SortKey) => setSort((cur) => ({ key, dir: cur.key === key ? (-cur.dir as 1 | -1) : key === "id" || key === "date" ? 1 : -1 }));
 
   return (
     <div className={clsx(selected && "xl:pr-[500px]")}>
@@ -190,7 +194,8 @@ export function Workspace({ runId }: { runId: string }) {
                 ["review", "Review queue", reviewCount],
                 ["matches", "All matches", data.matches.length],
                 ["exceptions", "Exceptions", openExc],
-              ] as [Tab, string, number][]
+                ["insights", "Insights", null],
+              ] as [Tab, string, number | null][]
             ).map(([t, label, n]) => (
               <button
                 key={t}
@@ -198,14 +203,17 @@ export function Workspace({ runId }: { runId: string }) {
                   setTab(t);
                   setStatus("all");
                 }}
-                className={clsx("flex items-center gap-2 border-b-2 pb-2.5 text-[13px] font-semibold whitespace-nowrap", tab === t ? "border-brand text-ink" : "border-transparent text-ink-3 hover:text-ink")}
+                className={clsx(
+                  "flex items-center gap-2 border-b-2 pb-2.5 text-[13px] font-semibold whitespace-nowrap",
+                  tab === t ? "border-brand text-ink" : "border-transparent text-ink-3 hover:text-ink",
+                )}
               >
                 {label}
-                <span className={clsx("tabular rounded-full px-1.5 text-[11px]", tab === t ? "bg-brand-soft text-brand" : "bg-neutral-soft text-ink-3")}>{int(n)}</span>
+                {n !== null && <span className={clsx("tabular rounded-full px-1.5 text-[11px]", tab === t ? "bg-brand-soft text-brand" : "bg-neutral-soft text-ink-3")}>{int(n)}</span>}
               </button>
             ))}
           </nav>
-          <div className="flex flex-wrap items-center gap-2 pb-3">
+          <div className={clsx("flex flex-wrap items-center gap-2 pb-3", tab === "insights" && "hidden")}>
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute top-2.5 left-2.5 h-4 w-4 text-ink-3" />
               <input className="input pl-8" placeholder="Search ID, reference, amount…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search" />
@@ -255,31 +263,42 @@ export function Workspace({ runId }: { runId: string }) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          {tab === "exceptions" ? (
-            <ExceptionTable rows={slice as ExceptionDTO[]} tx={tx} selectedId={selected?.item.id} onSelect={(e) => setSelected({ kind: "exception", item: e })} sort={sort} toggleSort={toggleSort} />
-          ) : (
-            <MatchTable rows={slice as MatchDTO[]} tx={tx} selectedId={selected?.item.id} onSelect={(m) => setSelected({ kind: "match", item: m })} sort={sort} toggleSort={toggleSort} />
-          )}
-          {list.length === 0 && <div className="px-4 py-12 text-center text-[13px] text-ink-3">{tab === "review" && !q ? "The review queue is empty." : "No rows match the current filters."}</div>}
-        </div>
+        {tab === "insights" ? (
+          <InsightsPanel runId={runId} tx={tx} />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              {tab === "exceptions" ? (
+                <ExceptionTable
+                  rows={slice as ExceptionDTO[]}
+                  tx={tx}
+                  selectedId={selected?.item.id}
+                  onSelect={(e) => setSelected({ kind: "exception", item: e })}
+                  sort={sort}
+                  toggleSort={toggleSort}
+                />
+              ) : (
+                <MatchTable rows={slice as MatchDTO[]} tx={tx} selectedId={selected?.item.id} onSelect={(m) => setSelected({ kind: "match", item: m })} sort={sort} toggleSort={toggleSort} />
+              )}
+              {list.length === 0 && <div className="px-4 py-12 text-center text-[13px] text-ink-3">{tab === "review" && !q ? "The review queue is empty." : "No rows match the current filters."}</div>}
+            </div>
 
-        <div className="flex items-center justify-between border-t border-line px-4 py-2.5 text-[12px] text-ink-3">
-          <span className="tabular">
-            {list.length ? `${int(page * PAGE + 1)}–${int(Math.min(list.length, (page + 1) * PAGE))} of ${int(list.length)}` : "0 rows"}
-          </span>
-          <div className="flex items-center gap-1">
-            <button className="btn btn-secondary h-8 px-2" disabled={page === 0} onClick={() => setPage((x) => x - 1)} aria-label="Previous page">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="tabular px-2">
-              {page + 1} / {pages}
-            </span>
-            <button className="btn btn-secondary h-8 px-2" disabled={page >= pages - 1} onClick={() => setPage((x) => x + 1)} aria-label="Next page">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center justify-between border-t border-line px-4 py-2.5 text-[12px] text-ink-3">
+              <span className="tabular">{list.length ? `${int(page * PAGE + 1)}–${int(Math.min(list.length, (page + 1) * PAGE))} of ${int(list.length)}` : "0 rows"}</span>
+              <div className="flex items-center gap-1">
+                <button className="btn btn-secondary h-8 px-2" disabled={page === 0} onClick={() => setPage((x) => x - 1)} aria-label="Previous page">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="tabular px-2">
+                  {page + 1} / {pages}
+                </span>
+                <button className="btn btn-secondary h-8 px-2" disabled={page >= pages - 1} onClick={() => setPage((x) => x + 1)} aria-label="Next page">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {selected && (
@@ -317,13 +336,33 @@ function TxCell({ ids, tx, align = "left" }: { ids: string[]; tx: Record<string,
       <div className="truncate text-[11.5px] text-ink-3">
         {first.date}
         {ids.length === 1 && first.reference ? ` · ${first.reference}` : ""}
-        {ids.length > 1 ? ` · ${ids.map((i) => tx[i]?.date).filter(Boolean).sort().at(-1)}` : ""}
+        {ids.length > 1
+          ? ` · ${ids
+              .map((i) => tx[i]?.date)
+              .filter(Boolean)
+              .sort()
+              .at(-1)}`
+          : ""}
       </div>
     </div>
   );
 }
 
-function MatchTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { rows: MatchDTO[]; tx: Record<string, TxDTO>; selectedId?: string; onSelect: (m: MatchDTO) => void; sort: { key: SortKey; dir: number }; toggleSort: (k: SortKey) => void }) {
+function MatchTable({
+  rows,
+  tx,
+  selectedId,
+  onSelect,
+  sort,
+  toggleSort,
+}: {
+  rows: MatchDTO[];
+  tx: Record<string, TxDTO>;
+  selectedId?: string;
+  onSelect: (m: MatchDTO) => void;
+  sort: { key: SortKey; dir: number };
+  toggleSort: (k: SortKey) => void;
+}) {
   if (rows.length === 0) return null;
   return (
     <table className="w-full min-w-[980px] text-[13px]">
@@ -343,7 +382,7 @@ function MatchTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { rows
         {rows.map((m) => {
           const diff = BigInt(m.bankTotalMinor) - BigInt(m.ledgerTotalMinor);
           return (
-            <tr key={m.id} onClick={() => onSelect(m)} className={clsx("table-row cursor-pointer border-b border-line last:border-0", selectedId === m.id && "!bg-brand-soft/60")}>
+            <tr key={m.id} onClick={() => onSelect(m)} className={clsx("row-hover cursor-pointer border-b border-line last:border-0", selectedId === m.id && "!bg-brand-soft/60")}>
               <td className="px-3 py-2.5 align-top">
                 <div className="font-mono text-[12px] font-semibold text-ink">{m.id}</div>
                 <div className="text-[11px] text-ink-3">{METHOD_LABEL[m.method]}</div>
@@ -357,18 +396,26 @@ function MatchTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { rows
               <td className="px-3 py-2.5 text-center align-top">
                 <div className="inline-flex items-center gap-1 text-ink-3">
                   <Link2 className="h-3.5 w-3.5" />
-                  <span className={clsx("tabular text-[12px] font-semibold", m.score >= 0.9 ? "text-ok" : m.score >= 0.7 ? "text-info" : "text-warn")}>{m.status === "verified" ? "rule" : `${Math.round(m.score * 100)}%`}</span>
+                  <span className={clsx("tabular text-[12px] font-semibold", m.score >= 0.9 ? "text-ok" : m.score >= 0.7 ? "text-info" : "text-warn")}>
+                    {m.status === "verified" ? "rule" : `${Math.round(m.score * 100)}%`}
+                  </span>
                 </div>
               </td>
               <td className="max-w-[240px] px-3 py-2.5 align-top">
                 <TxCell ids={m.ledgerIds} tx={tx} />
               </td>
               <td className="tabular px-3 py-2.5 text-right align-top font-medium">{money(m.ledgerTotalMinor, m.currency)}</td>
-              <td className={clsx("tabular px-3 py-2.5 text-right align-top", diff === 0n ? "text-ink-3" : "font-semibold text-warn")}>{diff === 0n ? "0" : money(diff, m.currency, { sign: true })}</td>
+              <td className={clsx("tabular px-3 py-2.5 text-right align-top", diff === 0n ? "text-ink-3" : "font-semibold text-warn")}>
+                {diff === 0n ? "0" : money(diff, m.currency, { sign: true })}
+              </td>
               <td className="px-3 py-2.5 align-top">
                 <div className="flex flex-wrap items-center gap-1">
                   <StatusBadge status={m.status} />
-                  {m.flags.filter((f) => f !== "low_confidence" || m.status !== "verified").map((f) => <FlagChip key={f} flag={f} />)}
+                  {m.flags
+                    .filter((f) => f !== "low_confidence" || m.status !== "verified")
+                    .map((f) => (
+                      <FlagChip key={f} flag={f} />
+                    ))}
                 </div>
               </td>
             </tr>
@@ -379,7 +426,21 @@ function MatchTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { rows
   );
 }
 
-function ExceptionTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { rows: ExceptionDTO[]; tx: Record<string, TxDTO>; selectedId?: string; onSelect: (e: ExceptionDTO) => void; sort: { key: SortKey; dir: number }; toggleSort: (k: SortKey) => void }) {
+function ExceptionTable({
+  rows,
+  tx,
+  selectedId,
+  onSelect,
+  sort,
+  toggleSort,
+}: {
+  rows: ExceptionDTO[];
+  tx: Record<string, TxDTO>;
+  selectedId?: string;
+  onSelect: (e: ExceptionDTO) => void;
+  sort: { key: SortKey; dir: number };
+  toggleSort: (k: SortKey) => void;
+}) {
   if (rows.length === 0) return null;
   return (
     <table className="w-full min-w-[900px] text-[13px]">
@@ -397,7 +458,7 @@ function ExceptionTable({ rows, tx, selectedId, onSelect, sort, toggleSort }: { 
         {rows.map((e) => {
           const first = tx[e.bankIds[0] ?? e.ledgerIds[0]!];
           return (
-            <tr key={e.id} onClick={() => onSelect(e)} className={clsx("table-row cursor-pointer border-b border-line last:border-0", selectedId === e.id && "!bg-brand-soft/60")}>
+            <tr key={e.id} onClick={() => onSelect(e)} className={clsx("row-hover cursor-pointer border-b border-line last:border-0", selectedId === e.id && "!bg-brand-soft/60")}>
               <td className="px-3 py-2.5 align-top font-mono text-[12px] font-semibold">{e.id}</td>
               <td className="px-3 py-2.5 align-top">
                 <ExceptionBadge type={e.type} />

@@ -2,6 +2,7 @@ import "server-only";
 import { defaultModel } from "@/engine/default-model";
 import { createInvestigator } from "@/engine/investigate";
 import { DEMO_BANK_MAPPING, DEMO_LEDGER_MAPPING, generateSynthetic } from "@/engine/synthetic";
+import { ANOMALY_DEFAULTS, benfordTest, detectAmountAnomalies } from "@/engine/anomaly";
 import { suggestMapping } from "@/engine/csv";
 import type { Side } from "@/engine/types";
 import { confirmImportRun, type ConfirmSide } from "./imports/confirm";
@@ -176,6 +177,15 @@ export function audit(ctx: WorkspaceContext, limit = 500) {
 
 export function verifyAudit(ctx: WorkspaceContext) {
   return verifyAuditChain(getDb(), ctx.orgId);
+}
+
+/** Statistical insights for one run (workspace-scoped): unusual amounts per counterparty and a first-digit test per side. */
+export function runInsights(ctx: WorkspaceContext, runId: string) {
+  const data = loadRun(getDb(), ctx.orgId, runId);
+  const all = [...data.bank, ...data.ledger];
+  const anomalies = detectAmountAnomalies(all).map((a) => ({ ...a, amountMinor: a.amountMinor.toString(), typicalMinor: a.typicalMinor.toString() }));
+  const benford = { bank: benfordTest(data.bank), ledger: benfordTest(data.ledger) };
+  return { anomalies, benford, settings: ANOMALY_DEFAULTS };
 }
 
 export function workspaceModelUsage(ctx: WorkspaceContext) {
