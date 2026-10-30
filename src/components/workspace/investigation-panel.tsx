@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import type { Investigation } from "@/engine/investigate";
 import type { ExceptionDTO, MatchDTO, TxDTO } from "@/lib/dto";
 import { dateTime, METHOD_LABEL, money } from "@/lib/format";
-import { setReviewer, useReviewer } from "../reviewer";
 import { Badge, ExceptionBadge, FlagChip, StatusBadge } from "../ui";
 
 interface Decision {
@@ -36,7 +35,6 @@ export function InvestigationPanel({
   onClose: () => void;
   onDecided: (subject: Subject, newStatus: string) => void;
 }) {
-  const reviewer = useReviewer();
   const [data, setData] = useState<{ investigation: Investigation; decisions: Decision[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -65,7 +63,6 @@ export function InvestigationPanel({
 
   async function decide(decision: string) {
     setActionError(null);
-    if (!reviewer.trim()) return setActionError("Enter your name as reviewer first.");
     if (reason.trim().length < 3) return setActionError("A reason (at least 3 characters) is required for every decision.");
     setBusy(decision);
     try {
@@ -73,7 +70,7 @@ export function InvestigationPanel({
       const res = await fetch(`/api/runs/${encodeURIComponent(runId)}/${path}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ decision, reason, reviewer }),
+        body: JSON.stringify({ decision, reason }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Decision failed");
@@ -155,9 +152,8 @@ export function InvestigationPanel({
       </div>
 
       <footer className="border-t border-line bg-[#fafbfd] px-5 py-4">
-        <div className="mb-2 grid grid-cols-[1fr] gap-2 sm:grid-cols-[180px_1fr]">
-          <input className="input" placeholder="Reviewer name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} aria-label="Reviewer name" />
-          <input className="input" placeholder="Reason (required, recorded in audit trail)" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Decision reason" maxLength={1000} />
+        <div className="mb-2">
+          <input className="input" placeholder="Reason for your decision (required, recorded in the audit trail)" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Decision reason" maxLength={1000} />
         </div>
         {actionError && <p className="mb-2 text-[12px] text-bad">{actionError}</p>}
         <div className="flex flex-wrap gap-2">

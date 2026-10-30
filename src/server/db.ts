@@ -118,10 +118,29 @@ BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
 
 export type DB = Database.Database;
 
+/** Additive migrations for databases created before multi-tenancy. Never drops data. */
+const TENANT_COLUMNS: [table: string, column: string][] = [
+  ["datasets", "organization_id"],
+  ["runs", "organization_id"],
+  ["audit_events", "organization_id"],
+];
+
+function migrate(db: DB) {
+  for (const [table, column] of TENANT_COLUMNS) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS runs_org ON runs(organization_id, created_at);
+    CREATE INDEX IF NOT EXISTS audit_org ON audit_events(organization_id, seq);
+  `);
+}
+
 export function openDatabase(file: string): DB {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
   const db = new Database(file);
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

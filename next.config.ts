@@ -8,6 +8,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Lets a production build run alongside the dev preview without sharing .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   serverExternalPackages: ["better-sqlite3"],
   poweredByHeader: false,
   async headers() {

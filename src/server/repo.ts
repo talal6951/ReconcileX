@@ -58,8 +58,9 @@ export class NotFoundError extends Error {
  */
 export function createRun(
   db: DB,
-  input: { name: string; bank: ImportSide; ledger: ImportSide; actor: string; model: LogisticModel; config?: Partial<EngineConfig>; source: "upload" | "demo" },
+  input: { orgId: string; name: string; bank: ImportSide; ledger: ImportSide; actor: string; model: LogisticModel; config?: Partial<EngineConfig>; source: "upload" | "demo" },
 ): CreateRunOutcome {
+  const orgId = requireOrg(input.orgId);
   const actor = cleanActor(input.actor);
   const name = input.name.trim().slice(0, 120) || "Untitled reconciliation";
   const parsed: Record<Side, Transaction[]> = { bank: [], ledger: [] };
@@ -92,22 +93,22 @@ export function createRun(
 
   db.transaction(() => {
     const datasetIds: Record<Side, string> = { bank: randomUUID(), ledger: randomUUID() };
-    const insDs = db.prepare("INSERT INTO datasets (id, side, filename, sha256, row_count, mapping_json, created_at) VALUES (?,?,?,?,?,?,?)");
+    const insDs = db.prepare("INSERT INTO datasets (id, organization_id, side, filename, sha256, row_count, mapping_json, created_at) VALUES (?,?,?,?,?,?,?,?)");
     const insTx = db.prepare(
       "INSERT INTO transactions (dataset_id, id, source_line, external_id, date, day, amount_minor, currency, reference, description, counterparty) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
     );
     for (const side of ["bank", "ledger"] as const) {
       const s = input[side];
       const fileHash = sha256(s.csv);
-      insDs.run(datasetIds[side], side, s.filename.slice(0, 200), fileHash, parsed[side].length, JSON.stringify(s.mapping), now);
+      insDs.run(datasetIds[side], orgId, side, s.filename.slice(0, 200), fileHash, parsed[side].length, JSON.stringify(s.mapping), now);
       for (const t of parsed[side]) {
         insTx.run(datasetIds[side], t.id, t.sourceLine, t.externalId, t.date, t.day, t.amountMinor.toString(), t.currency, t.reference, t.description, t.counterparty);
       }
-      appendAudit(db, { actor, action: "dataset.imported", runId, entityType: "dataset", entityId: datasetIds[side], details: { side, filename: s.filename, sha256: fileHash, rows: parsed[side].length } });
+      appendAudit(db, { orgId, actor, action: "dataset.imported", runId, entityType: "dataset", entityId: datasetIds[side], details: { side, filename: s.filename, sha256: fileHash, rows: parsed[side].length } });
     }
     db.prepare(
-      "INSERT INTO runs (id, name, bank_dataset_id, ledger_dataset_id, engine_version, model_version, config_json, metrics_json, duplicate_groups_json, source, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-    ).run(runId, name, datasetIds.bank, datasetIds.ledger, result.engineVersion, result.modelVersion, JSON.stringify(result.config), JSON.stringify(serializeMetrics(result.metrics)), JSON.stringify(result.duplicateGroups), input.source, actor, now);
+      "INSERT INTO runs (id, organization_id, name, bank_dataset_id, ledger_dataset_id, engine_version, model_version, config_json, metrics_json, duplicate_groups_json, source, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).run(runId, orgId, name, datasetIds.bank, datasetIds.ledger, result.engineVersion, result.modelVersion, JSON.stringify(result.config), JSON.stringify(serializeMetrics(result.metrics)), JSON.stringify(result.duplicateGroups), input.source, actor, now);
     const insM = db.prepare(
       "INSERT INTO matches (run_id, id, kind, status, original_status, method, score, bank_ids_json, ledger_ids_json, currency, bank_total_minor, ledger_total_minor, flags_json, evidence_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     );
@@ -121,6 +122,7 @@ export function createRun(
       insE.run(runId, e.id, e.type, JSON.stringify(e.bankIds), JSON.stringify(e.ledgerIds), e.currency, e.exposureMinor.toString(), e.message, JSON.stringify(e.details));
     }
     appendAudit(db, {
+      orgId,
       actor,
       action: "run.completed",
       runId,
@@ -230,15 +232,28 @@ const toSummary = (db: DB, r: RunRow): RunSummary => ({
   progress: progressFor(db, r.id),
 });
 
-export function listRuns(db: DB, limit = 100): RunSummary[] {
-  const rows = db.prepare(`${RUN_SELECT} ORDER BY r.created_at DESC LIMIT ?`).all(limit) as RunRow[];
+export function listRuns(db: DB, orgId: string, limit = 100): RunSummary[] {
+  const rows = db.prepare(`${RUN_SELECT} WHERE r.organization_id = ? ORDER BY r.created_at DESC LIMIT ?`).all(requireOrg(orgId), limit) as RunRow[];
   return rows.map((r) => toSummary(db, r));
 }
 
-export function getRunSummary(db: DB, runId: string): RunSummary {
-  const r = db.prepare(`${RUN_SELECT} WHERE r.id = ?`).get(runId) as RunRow | undefined;
+/**
+ * Tenant guard: a run outside the caller's workspace is reported as not found
+ * (no existence leak across workspaces).
+ */
+function runRow(db: DB, orgId: string, runId: string): RunRow {
+  const r = db.prepare(`${RUN_SELECT} WHERE r.id = ? AND r.organization_id = ?`).get(runId, requireOrg(orgId)) as RunRow | undefined;
   if (!r) throw new NotFoundError(`Run ${runId} not found`);
-  return toSummary(db, r);
+  return r;
+}
+
+export function getRunSummary(db: DB, orgId: string, runId: string): RunSummary {
+  return toSummary(db, runRow(db, orgId, runId));
+}
+
+function requireOrg(orgId: string): string {
+  if (typeof orgId !== "string" || orgId.length === 0) throw new Error("Workspace context is required");
+  return orgId;
 }
 
 interface TxRow {
@@ -315,9 +330,9 @@ function loadTxs(db: DB, datasetId: string, side: Side): Transaction[] {
 }
 
 /** Full run state including current review statuses. Transactions are cached (immutable). */
-export function loadRun(db: DB, runId: string): RunData {
-  const r = db.prepare(`${RUN_SELECT} WHERE r.id = ?`).get(runId) as RunRow | undefined;
-  if (!r) throw new NotFoundError(`Run ${runId} not found`);
+export function loadRun(db: DB, orgId: string, runId: string): RunData {
+  // Tenant check happens before the cache is consulted.
+  const r = runRow(db, orgId, runId);
   let cached = runCache.get(runId);
   if (!cached) {
     cached = {
@@ -393,10 +408,11 @@ function cleanReason(reason: string): string {
 }
 
 /** Human review of a proposed match. Every decision is recorded and audited. */
-export function decideMatch(db: DB, input: { runId: string; matchId: string; decision: MatchDecision; reason: string; reviewer: string }) {
+export function decideMatch(db: DB, input: { orgId: string; runId: string; matchId: string; decision: MatchDecision; reason: string; reviewer: string }) {
   const reviewer = cleanActor(input.reviewer);
   const reason = cleanReason(input.reason);
   return db.transaction(() => {
+    runRow(db, input.orgId, input.runId);
     const row = db.prepare("SELECT status, original_status FROM matches WHERE run_id = ? AND id = ?").get(input.runId, input.matchId) as
       | { status: MatchStatus; original_status: MatchStatus }
       | undefined;
@@ -410,15 +426,16 @@ export function decideMatch(db: DB, input: { runId: string; matchId: string; dec
     db.prepare(
       "INSERT INTO review_decisions (run_id, subject_type, subject_id, decision, from_status, to_status, reason, reviewer, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
     ).run(input.runId, "match", input.matchId, input.decision, row.status, to, reason, reviewer, now);
-    appendAudit(db, { actor: reviewer, action: `match.${input.decision}`, runId: input.runId, entityType: "match", entityId: input.matchId, details: { from: row.status, to, reason } });
+    appendAudit(db, { orgId: input.orgId, actor: reviewer, action: `match.${input.decision}`, runId: input.runId, entityType: "match", entityId: input.matchId, details: { from: row.status, to, reason } });
     return { from: row.status, to };
   })();
 }
 
-export function decideException(db: DB, input: { runId: string; exceptionId: string; decision: "resolve" | "reopen"; reason: string; reviewer: string }) {
+export function decideException(db: DB, input: { orgId: string; runId: string; exceptionId: string; decision: "resolve" | "reopen"; reason: string; reviewer: string }) {
   const reviewer = cleanActor(input.reviewer);
   const reason = cleanReason(input.reason);
   return db.transaction(() => {
+    runRow(db, input.orgId, input.runId);
     const row = db.prepare("SELECT status FROM exceptions WHERE run_id = ? AND id = ?").get(input.runId, input.exceptionId) as { status: "open" | "resolved" } | undefined;
     if (!row) throw new NotFoundError(`Exception ${input.exceptionId} not found in ${input.runId}`);
     const expected = input.decision === "resolve" ? "open" : "resolved";
@@ -428,7 +445,7 @@ export function decideException(db: DB, input: { runId: string; exceptionId: str
     db.prepare(
       "INSERT INTO review_decisions (run_id, subject_type, subject_id, decision, from_status, to_status, reason, reviewer, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
     ).run(input.runId, "exception", input.exceptionId, input.decision, row.status, to, reason, reviewer, new Date().toISOString());
-    appendAudit(db, { actor: reviewer, action: `exception.${input.decision}`, runId: input.runId, entityType: "exception", entityId: input.exceptionId, details: { from: row.status, to, reason } });
+    appendAudit(db, { orgId: input.orgId, actor: reviewer, action: `exception.${input.decision}`, runId: input.runId, entityType: "exception", entityId: input.exceptionId, details: { from: row.status, to, reason } });
     return { from: row.status, to };
   })();
 }
@@ -445,7 +462,8 @@ export interface DecisionRecord {
   createdAt: string;
 }
 
-export function listDecisions(db: DB, runId: string, subjectId?: string): DecisionRecord[] {
+export function listDecisions(db: DB, orgId: string, runId: string, subjectId?: string): DecisionRecord[] {
+  runRow(db, orgId, runId);
   const rows = (
     subjectId
       ? db.prepare("SELECT * FROM review_decisions WHERE run_id = ? AND subject_id = ? ORDER BY id DESC").all(runId, subjectId)
@@ -464,6 +482,7 @@ export function listDecisions(db: DB, runId: string, subjectId?: string): Decisi
   }));
 }
 
-export function recordExport(db: DB, input: { runId: string; actor: string; format: string }) {
-  appendAudit(db, { actor: cleanActor(input.actor), action: "report.exported", runId: input.runId, entityType: "run", entityId: input.runId, details: { format: input.format } });
+export function recordExport(db: DB, input: { orgId: string; runId: string; actor: string; format: string }) {
+  runRow(db, input.orgId, input.runId);
+  appendAudit(db, { orgId: input.orgId, actor: cleanActor(input.actor), action: "report.exported", runId: input.runId, entityType: "run", entityId: input.runId, details: { format: input.format } });
 }

@@ -1,9 +1,12 @@
 import { NewRun } from "@/components/new-run";
 import { PageHeader } from "@/components/ui";
+import { requireWorkspacePage } from "@/server/session";
 
 export const metadata = { title: "New reconciliation" };
+export const dynamic = "force-dynamic";
 
-export default function NewReconciliation() {
+export default async function NewReconciliation() {
+  await requireWorkspacePage();
   return (
     <>
       <PageHeader

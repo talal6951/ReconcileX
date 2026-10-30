@@ -11,11 +11,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "train": "tsx scripts/train-model.ts"
+    "train": "tsx scripts/train-model.ts",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "test:security": "node scripts/security-smoke.mjs"
   },
   "dependencies": {
+    "better-auth": "^1.7.14",
     "better-sqlite3": "^13.0.3",
     "clsx": "^2.1.1",
+    "geist": "^1.8.2",
     "lucide-react": "^1.64.0",
     "next": "^15.5.28",
     "papaparse": "^5.7.0",
@@ -27,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.6.6",

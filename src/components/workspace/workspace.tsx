@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ExceptionDTO, MatchDTO, TxDTO, WorkspaceDTO } from "@/lib/dto";
 import { dateTime, EXCEPTION_LABEL, int, METHOD_LABEL, money, ms, pct } from "@/lib/format";
-import { useReviewer } from "../reviewer";
 import { ExceptionBadge, FlagChip, Kpi, PageHeader, StatusBadge } from "../ui";
 import { InvestigationPanel, type Subject } from "./investigation-panel";
 
@@ -28,7 +27,6 @@ export function Workspace({ runId }: { runId: string }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "id", dir: 1 });
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Subject | null>(null);
-  const reviewer = useReviewer();
 
   const load = useCallback(async () => {
     try {
@@ -135,7 +133,7 @@ export function Workspace({ runId }: { runId: string }) {
     load();
   }
 
-  const exportHref = (format: string) => `/api/runs/${encodeURIComponent(runId)}/export?format=${format}&by=${encodeURIComponent(reviewer || "anonymous")}`;
+  const exportHref = (format: string) => `/api/runs/${encodeURIComponent(runId)}/export?format=${format}`;
   const toggleSort = (key: SortKey) => setSort((cur) => ({ key, dir: cur.key === key ? ((-cur.dir) as 1 | -1) : key === "id" || key === "date" ? 1 : -1 }));
 
   return (
@@ -168,7 +166,7 @@ export function Workspace({ runId }: { runId: string }) {
                 ))}
               </div>
             </div>
-            <Link className="btn btn-primary" href={`/runs/${runId}/report`}>
+            <Link className="btn btn-primary" href={`/app/reconciliations/${runId}/report`}>
               <FileText className="h-4 w-4" /> Report
             </Link>
           </>

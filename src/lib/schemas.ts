@@ -19,29 +19,19 @@ export const mappingSchema = z.object({
   invertSign: z.boolean().optional(),
 });
 
-export const reviewer = z.string().trim().min(1).max(80);
+const side = z.object({ filename: z.string().min(1).max(200), csv: z.string(), mapping: mappingSchema });
 
-export const createRunSchema = z.object({
-  name: z.string().max(120),
-  reviewer,
-  bank: z.object({ filename: z.string().min(1).max(200), csv: z.string(), mapping: mappingSchema }),
-  ledger: z.object({ filename: z.string().min(1).max(200), csv: z.string(), mapping: mappingSchema }),
-});
+// Identity comes from the server session; request bodies never carry a reviewer name.
+export const createRunSchema = z.object({ name: z.string().max(120), bank: side, ledger: side });
 
-export const demoRunSchema = z.object({
-  reviewer,
-  seed: z.number().int(),
-  events: z.number().int(),
-});
+export const demoRunSchema = z.object({ seed: z.number().int(), events: z.number().int() });
 
 export const matchDecisionSchema = z.object({
   decision: z.enum(["approve", "reject", "reopen"]),
   reason: z.string().max(1000),
-  reviewer,
 });
 
 export const exceptionDecisionSchema = z.object({
   decision: z.enum(["resolve", "reopen"]),
   reason: z.string().max(1000),
-  reviewer,
 });

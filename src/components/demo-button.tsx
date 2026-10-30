@@ -3,11 +3,9 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useReviewer } from "./reviewer";
 
 export function DemoButton({ seed = 42, events = 1500, label = "Run demo reconciliation" }: { seed?: number; events?: number; label?: string }) {
   const router = useRouter();
-  const reviewer = useReviewer();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,11 +16,11 @@ export function DemoButton({ seed = 42, events = 1500, label = "Run demo reconci
       const res = await fetch("/api/runs/demo", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ seed, events, reviewer: reviewer || "demo-user" }),
+        body: JSON.stringify({ seed, events }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Demo run failed");
-      router.push(`/runs/${body.runId}`);
+      router.push(`/app/reconciliations/${body.runId}`);
       router.refresh();
     } catch (e) {
       setError((e as Error).message);

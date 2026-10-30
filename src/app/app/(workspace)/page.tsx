@@ -5,6 +5,7 @@ import { DemoButton } from "@/components/demo-button";
 import { Card, Empty, Kpi, PageHeader, Progress } from "@/components/ui";
 import { compactMoney, dateTime, EXCEPTION_LABEL, int, ms, pct } from "@/lib/format";
 import { runs as listRuns } from "@/server/service";
+import { requireWorkspacePage } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,9 @@ const EXC_COLOR: Record<string, string> = {
   duplicate_ledger: "#f0cc7a",
 };
 
-export default function Overview() {
-  const runs = listRuns();
+export default async function Overview() {
+  const ctx = await requireWorkspacePage();
+  const runs = listRuns(ctx);
   if (runs.length === 0) {
     return (
       <>
@@ -29,7 +31,7 @@ export default function Overview() {
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 <DemoButton />
-                <Link className="btn btn-secondary" href="/reconcile/new">
+                <Link className="btn btn-secondary" href="/app/reconciliations/new">
                   Upload CSV files
                 </Link>
               </div>
@@ -83,15 +85,15 @@ export default function Overview() {
         title="Reconciliation overview"
         description={
           <>
-            Latest run <Link href={`/runs/${latest.id}`} className="font-medium text-brand hover:underline">{latest.name}</Link> · {dateTime(latest.createdAt)} · engine {latest.engineVersion} · model {latest.modelVersion}
+            Latest run <Link href={`/app/reconciliations/${latest.id}`} className="font-medium text-brand hover:underline">{latest.name}</Link> · {dateTime(latest.createdAt)} · engine {latest.engineVersion} · model {latest.modelVersion}
           </>
         }
         actions={
           <>
-            <Link className="btn btn-secondary" href={`/runs/${latest.id}/report`}>
+            <Link className="btn btn-secondary" href={`/app/reconciliations/${latest.id}/report`}>
               Report
             </Link>
-            <Link className="btn btn-primary" href={`/runs/${latest.id}`}>
+            <Link className="btn btn-primary" href={`/app/reconciliations/${latest.id}`}>
               Open workspace
             </Link>
           </>
@@ -179,7 +181,7 @@ export default function Overview() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="Recent reconciliations" actions={<Link href="/runs" className="text-[12px] font-semibold text-brand hover:underline">View all</Link>} bodyClassName="p-0">
+      <Card className="mt-4" title="Recent reconciliations" actions={<Link href="/app/reconciliations" className="text-[12px] font-semibold text-brand hover:underline">View all</Link>} bodyClassName="p-0">
         <RecentRuns runs={runs.slice(0, 6)} />
       </Card>
     </>
@@ -190,7 +192,7 @@ function RecentRuns({ runs }: { runs: ReturnType<typeof listRuns> }) {
   return (
     <div className="divide-y divide-line">
       {runs.map((r) => (
-        <Link key={r.id} href={`/runs/${r.id}`} className="table-row flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <Link key={r.id} href={`/app/reconciliations/${r.id}`} className="table-row flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold text-ink">{r.name}</div>
             <div className="text-[12px] text-ink-3">

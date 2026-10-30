@@ -3,12 +3,14 @@ import { DemoButton } from "@/components/demo-button";
 import { Card, Empty, PageHeader, Progress } from "@/components/ui";
 import { dateTime, int, ms, pct } from "@/lib/format";
 import { runs as listRuns } from "@/server/service";
+import { requireWorkspacePage } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Reconciliations" };
 
-export default function Runs() {
-  const runs = listRuns();
+export default async function Runs() {
+  const ctx = await requireWorkspacePage();
+  const runs = listRuns(ctx);
   return (
     <>
       <PageHeader
@@ -16,7 +18,7 @@ export default function Runs() {
         title="Reconciliations"
         description="Every run is stored with its inputs, engine and model versions, results and review decisions."
         actions={
-          <Link className="btn btn-primary" href="/reconcile/new">
+          <Link className="btn btn-primary" href="/app/reconciliations/new">
             New reconciliation
           </Link>
         }
@@ -44,7 +46,7 @@ export default function Runs() {
                 {runs.map((r) => (
                   <tr key={r.id} className="table-row border-b border-line last:border-0">
                     <td className="px-4 py-3">
-                      <Link href={`/runs/${r.id}`} className="font-semibold text-ink hover:text-brand">
+                      <Link href={`/app/reconciliations/${r.id}`} className="font-semibold text-ink hover:text-brand">
                         {r.name}
                       </Link>
                       <div className="text-[11.5px] text-ink-3">

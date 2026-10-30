@@ -9,7 +9,6 @@ import { DATE_FORMATS, detectDateFormats, type DateFormat } from "@/engine/dates
 import { CURRENCY_EXPONENTS } from "@/engine/money";
 import type { ColumnMapping, RowError, Side } from "@/engine/types";
 import { int } from "@/lib/format";
-import { setReviewer, useReviewer } from "./reviewer";
 import { Card } from "./ui";
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -55,7 +54,6 @@ function fromFile(filename: string, text: string): SideState {
 
 export function NewRun() {
   const router = useRouter();
-  const reviewer = useReviewer();
   const [name, setName] = useState("");
   const [sides, setSides] = useState<Record<Side, SideState | null>>({ bank: null, ledger: null });
   const [busy, setBusy] = useState(false);
@@ -82,7 +80,7 @@ export function NewRun() {
     return out;
   }, [sides]);
 
-  const ready = (["bank", "ledger"] as const).every((s) => sides[s] && check[s] && check[s]!.problems.length === 0 && check[s]!.rowErrors.length === 0) && reviewer.trim().length > 0;
+  const ready = (["bank", "ledger"] as const).every((s) => sides[s] && check[s] && check[s]!.problems.length === 0 && check[s]!.rowErrors.length === 0);
 
   async function submit() {
     setBusy(true);
@@ -94,7 +92,6 @@ export function NewRun() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: name || `${sides.bank!.filename} vs ${sides.ledger!.filename}`,
-          reviewer,
           bank: { filename: sides.bank!.filename, csv: sides.bank!.text, mapping: sides.bank!.mapping },
           ledger: { filename: sides.ledger!.filename, csv: sides.ledger!.text, mapping: sides.ledger!.mapping },
         }),
@@ -103,7 +100,7 @@ export function NewRun() {
       if (res.status === 422) setServerErrors(body.validation);
       else if (!res.ok) throw new Error(body.error ?? "Reconciliation failed");
       else {
-        router.push(`/runs/${body.runId}`);
+        router.push(`/app/reconciliations/${body.runId}`);
         return;
       }
     } catch (e) {
@@ -150,9 +147,7 @@ export function NewRun() {
         <Card title="Run reconciliation">
           <label className="mb-1 block text-[12px] font-medium text-ink-2">Name</label>
           <input className="input mb-3" placeholder="e.g. Operating account · October" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
-          <label className="mb-1 block text-[12px] font-medium text-ink-2">Reviewer</label>
-          <input className="input mb-1" placeholder="Your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} maxLength={80} />
-          <p className="mb-4 text-[11px] text-ink-3">Recorded on the run and in the audit trail. Local mode has no authentication.</p>
+          <p className="mb-4 text-[11px] text-ink-3">The run is recorded under your account in this workspace’s audit trail.</p>
           <ul className="mb-4 space-y-1.5 text-[12px]">
             {(["bank", "ledger"] as const).map((s) => {
               const ok = sides[s] && check[s] && check[s]!.problems.length === 0 && check[s]!.rowErrors.length === 0;
@@ -350,7 +345,6 @@ function SidePanel({ side, state, check, onChange }: { side: Side; state: SideSt
 
 function DemoCard() {
   const router = useRouter();
-  const reviewer = useReviewer();
   const [seed, setSeed] = useState(42);
   const [events, setEvents] = useState(1500);
   const [busy, setBusy] = useState(false);
@@ -359,10 +353,10 @@ function DemoCard() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/runs/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ seed, events, reviewer: reviewer || "demo-user" }) });
+      const res = await fetch("/api/runs/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ seed, events }) });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Demo failed");
-      router.push(`/runs/${body.runId}`);
+      router.push(`/app/reconciliations/${body.runId}`);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

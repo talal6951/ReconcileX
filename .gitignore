@@ -10,3 +10,20 @@ data/*.db-*
 data/uploads/
 .DS_Store
 coverage/
+.playwright-browsers/
+test-results/
+playwright-report/
+data/backups/
+.next-build/
+
+# Never commit databases, keys or credentials from anywhere in the tree.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
+*.pfx
