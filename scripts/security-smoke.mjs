@@ -61,9 +61,11 @@ async function newUser(label, { workspace = true } = {}) {
   return { c, email, orgId };
 }
 
-const privatePages = ["/app", "/app/reconciliations", "/app/reconciliations/new", "/app/onboarding"];
+const privatePages = ["/app", "/app/reconciliations", "/app/reconciliations/new", "/app/onboarding", "/app/model", "/app/audit"];
 const apiProbes = (runId) => [
   ["GET", "/api/runs"],
+  ["GET", "/api/audit/export"],
+  ["GET", `/api/audit/export?run=${runId}`],
   ["GET", `/api/runs/${runId}/workspace`],
   ["GET", `/api/runs/${runId}/investigate?exception=E-00001`],
   ["GET", `/api/runs/${runId}/export?format=json`],
@@ -76,6 +78,27 @@ const apiProbes = (runId) => [
   ["POST", `/api/runs/${runId}/exceptions/E-00001`, { decision: "resolve", reason: "attack" }],
   ["POST", "/api/runs", { name: "x", bank: { filename: "a", csv: "a", mapping: {} }, ledger: { filename: "b", csv: "b", mapping: {} } }],
 ];
+/** Minimal RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF). */
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") { row.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); rows.push(row); row = []; field = "";
+    } else field += ch;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
 // Markers that would indicate financial data leaked into a response body.
 const leaks = (text) => /amountMinor|"transactions"|bankTotalMinor|Match ID,|BTX\d{6}|"matches"\s*:/.test(text);
 
@@ -87,10 +110,18 @@ const leaks = (text) => /amountMinor|"transactions"|bankTotalMinor|Match ID,|BTX
   const runId = demo.json?.runId;
   const own = await victim.c.req(`/api/runs/${runId}/workspace`);
   check(own.status === 200 && leaks(own.text), "victim can read own run (control)");
+  const ownReport = await victim.c.req(`/app/reconciliations/${runId}/report`);
+  check(ownReport.status === 200 && ownReport.text.includes(runId), "victim can open own report page (control)");
+  const ownAudit = await victim.c.req(`/api/audit/export?run=${runId}`, { raw: true });
+  check(ownAudit.status === 200 && ownAudit.text.includes(runId), "victim's audit export includes own run events (control)");
+  for (const p of ["/app/model", "/app/audit"]) {
+    const r = await victim.c.req(p);
+    check(r.status === 200, `victim can open ${p} (control, ${r.status})`);
+  }
 
   console.log("\n— Unauthenticated —");
   const anon = client();
-  for (const p of privatePages) {
+  for (const p of [...privatePages, `/app/reconciliations/${runId}`, `/app/reconciliations/${runId}/report`]) {
     const r = await anon.req(p);
     check(r.status >= 300 && r.status < 400 && /\/sign-in/.test(r.location ?? "") && !leaks(r.text), `page ${p} redirects to sign-in (${r.status} → ${r.location})`);
   }
@@ -120,8 +151,23 @@ const leaks = (text) => /amountMinor|"transactions"|bankTotalMinor|Match ID,|BTX
 
   console.log("\n— Other company (cross-tenant) —");
   const attacker = await newUser("attacker");
+  // Workspace-wide endpoints answer 200 for the attacker but must contain only the attacker's own data.
+  const ownExport = await attacker.c.req(`/api/audit/export?run=${runId}`, { raw: true });
+  const exportRows = ownExport.text.trim().split(/\r?\n/).length - 1;
+  check(ownExport.status === 200 && exportRows === 0 && !ownExport.text.includes(runId), `attacker's audit export filtered to victim run is empty (${exportRows} rows)`);
+  // Note: the attacker's OWN log legitimately records the filter text they typed (e.g. the victim run ID)
+  // on their "audit.exported" event, so check structured columns rather than raw substrings.
+  const fullExport = await attacker.c.req("/api/audit/export", { raw: true });
+  const [header, ...auditRows] = parseCsv(fullExport.text);
+  const col = (name) => header.indexOf(name);
+  const victimRows = auditRows.filter((r) => r[col("Run")] === runId || r[col("Actor")].includes(victim.email));
+  check(fullExport.status === 200 && col("Run") >= 0 && victimRows.length === 0, `attacker's full audit export contains no victim events (${auditRows.length} own rows, ${victimRows.length} victim rows)`);
+  const auditPage = await attacker.c.req(`/app/audit?q=${encodeURIComponent(runId)}`);
+  check(auditPage.status === 200 && !auditPage.text.includes(`>${runId}<`), "attacker's audit page search finds no victim events");
+  const reportPage = await attacker.c.req(`/app/reconciliations/${runId}/report`);
+  check(reportPage.status === 404 && !leaks(reportPage.text), `attacker cannot open victim's report page (${reportPage.status})`);
   for (const [m, p, b] of apiProbes(runId)) {
-    if (p === "/api/runs" || p === "/api/audit/verify" || p.startsWith("/api/demo-csv") || p === "/api/runs/demo") continue;
+    if (p === "/api/runs" || p === "/api/audit/verify" || p.startsWith("/api/audit/export") || p.startsWith("/api/demo-csv") || p === "/api/runs/demo") continue;
     const r = await attacker.c.req(p, { method: m, body: b });
     check(r.status === 404 && !leaks(r.text), `${m} ${p} → ${r.status}`);
   }

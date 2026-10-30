@@ -4,7 +4,7 @@ import { createInvestigator } from "@/engine/investigate";
 import { DEMO_BANK_MAPPING, DEMO_LEDGER_MAPPING, generateSynthetic } from "@/engine/synthetic";
 import type { ColumnMapping } from "@/engine/types";
 import type { ExceptionDTO, MatchDTO, TxDTO, WorkspaceDTO } from "@/lib/dto";
-import { listAudit, verifyAuditChain } from "./audit";
+import { appendAudit, auditFacets, exportAuditEvents, listAudit, searchAudit, verifyAuditChain, type AuditQuery } from "./audit";
 import { getDb } from "./db";
 import { auditCsv, decisionsCsv, exceptionsCsv, matchesCsv, reportJson } from "./exports";
 import {
@@ -16,6 +16,7 @@ import {
   listDecisions,
   listRuns,
   loadRun,
+  modelUsage,
   recordExport,
   ValidationError,
   type MatchDecision,
@@ -150,4 +151,34 @@ export function audit(ctx: WorkspaceContext, limit = 500) {
 
 export function verifyAudit(ctx: WorkspaceContext) {
   return verifyAuditChain(getDb(), ctx.orgId);
+}
+
+export function workspaceModelUsage(ctx: WorkspaceContext) {
+  return modelUsage(getDb(), ctx.orgId);
+}
+
+/** Audit filters as accepted from callers. The workspace always comes from the verified session, never the request. */
+export type AuditFilters = Omit<AuditQuery, "orgId">;
+
+export function searchWorkspaceAudit(ctx: WorkspaceContext, filters: AuditFilters, page: { limit?: number; offset?: number }) {
+  return searchAudit(getDb(), { ...filters, orgId: ctx.orgId }, page);
+}
+
+export function workspaceAuditFacets(ctx: WorkspaceContext) {
+  return auditFacets(getDb(), ctx.orgId);
+}
+
+/** Workspace audit CSV (most recent 5,000 matching events). The export itself is audited. */
+export function exportWorkspaceAudit(ctx: WorkspaceContext, filters: AuditFilters) {
+  const db = getDb();
+  const { events, total, truncated } = exportAuditEvents(db, { ...filters, orgId: ctx.orgId });
+  appendAudit(db, {
+    orgId: ctx.orgId,
+    actor: ctx.actor,
+    action: "audit.exported",
+    entityType: "workspace",
+    entityId: ctx.orgId,
+    details: { exported: events.length, matched: total, truncated, filters: { ...filters } },
+  });
+  return { csv: auditCsv(events), exported: events.length, total, truncated };
 }

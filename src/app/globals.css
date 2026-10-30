@@ -47,6 +47,11 @@ body {
   font-feature-settings: "cv11", "ss01";
 }
 
+/*
+ * Component classes live in the components layer so Tailwind utilities
+ * (e.g. pl-8 on an .input) override them, as utilities are meant to.
+ */
+@layer components {
 .tabular {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
@@ -133,6 +138,8 @@ textarea:focus {
 
 .table-row:hover {
   background: #f7f9fc;
+}
+
 }
 
 ::selection {

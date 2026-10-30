@@ -180,6 +180,8 @@ export interface RunSummary {
   modelVersion: string;
   bankFile: string;
   ledgerFile: string;
+  bankSha256: string;
+  ledgerSha256: string;
   metrics: StoredMetrics;
   progress: ReviewProgress;
 }
@@ -199,9 +201,11 @@ interface RunRow {
   ledger_dataset_id: string;
   bank_file: string;
   ledger_file: string;
+  bank_sha256: string;
+  ledger_sha256: string;
 }
 
-const RUN_SELECT = `SELECT r.*, b.filename AS bank_file, l.filename AS ledger_file FROM runs r
+const RUN_SELECT = `SELECT r.*, b.filename AS bank_file, l.filename AS ledger_file, b.sha256 AS bank_sha256, l.sha256 AS ledger_sha256 FROM runs r
   JOIN datasets b ON b.id = r.bank_dataset_id JOIN datasets l ON l.id = r.ledger_dataset_id`;
 
 function progressFor(db: DB, runId: string): ReviewProgress {
@@ -228,6 +232,8 @@ const toSummary = (db: DB, r: RunRow): RunSummary => ({
   modelVersion: r.model_version,
   bankFile: r.bank_file,
   ledgerFile: r.ledger_file,
+  bankSha256: r.bank_sha256,
+  ledgerSha256: r.ledger_sha256,
   metrics: JSON.parse(r.metrics_json),
   progress: progressFor(db, r.id),
 });
@@ -485,4 +491,49 @@ export function listDecisions(db: DB, orgId: string, runId: string, subjectId?: 
 export function recordExport(db: DB, input: { orgId: string; runId: string; actor: string; format: string }) {
   runRow(db, input.orgId, input.runId);
   appendAudit(db, { orgId: input.orgId, actor: cleanActor(input.actor), action: "report.exported", runId: input.runId, entityType: "run", entityId: input.runId, details: { format: input.format } });
+}
+
+export interface ModelUsage {
+  runs: number;
+  byMethod: { method: string; total: number; verified: number; suggested: number; needsReview: number; approved: number; rejected: number }[];
+  /** ML-scored matches grouped by score band, with how reviewers decided them (agreement, not validation). */
+  mlBands: { band: string; total: number; approved: number; rejected: number; undecided: number }[];
+}
+
+/** How matching has performed in THIS workspace's runs, by method and status. Workspace-scoped. */
+export function modelUsage(db: DB, orgId: string): ModelUsage {
+  requireOrg(orgId);
+  const runs = (db.prepare("SELECT COUNT(*) AS n FROM runs WHERE organization_id = ?").get(orgId) as { n: number }).n;
+  const rows = db
+    .prepare(
+      `SELECT m.method AS method, m.status AS status, COUNT(*) AS n
+       FROM matches m JOIN runs r ON r.id = m.run_id
+       WHERE r.organization_id = ? GROUP BY m.method, m.status`,
+    )
+    .all(orgId) as { method: string; status: MatchStatus; n: number }[];
+  const methods = new Map<string, ModelUsage["byMethod"][number]>();
+  for (const { method, status, n } of rows) {
+    let m = methods.get(method);
+    if (!m) {
+      m = { method, total: 0, verified: 0, suggested: 0, needsReview: 0, approved: 0, rejected: 0 };
+      methods.set(method, m);
+    }
+    m.total += n;
+    if (status === "verified") m.verified += n;
+    else if (status === "suggested") m.suggested += n;
+    else if (status === "needs_review") m.needsReview += n;
+    else if (status === "approved") m.approved += n;
+    else if (status === "rejected") m.rejected += n;
+  }
+  const bands = db
+    .prepare(
+      `SELECT CASE WHEN m.score >= 0.9 THEN '90–100%' WHEN m.score >= 0.7 THEN '70–90%' ELSE '50–70%' END AS band,
+              SUM(m.status = 'approved') AS approved, SUM(m.status = 'rejected') AS rejected,
+              SUM(m.status IN ('suggested','needs_review')) AS undecided, COUNT(*) AS total
+       FROM matches m JOIN runs r ON r.id = m.run_id
+       WHERE r.organization_id = ? AND m.method = 'ml_scored'
+       GROUP BY band ORDER BY band DESC`,
+    )
+    .all(orgId) as ModelUsage["mlBands"];
+  return { runs, byMethod: [...methods.values()].sort((a, b) => b.total - a.total), mlBands: bands };
 }

@@ -111,6 +111,95 @@ export function listAudit(db: DB, opts: { orgId: string | null; runId?: string; 
   return rows.map(toEvent);
 }
 
+/** Filters for workspace audit search. orgId is mandatory and always applied. */
+export interface AuditQuery {
+  orgId: string;
+  /** Free text matched against actor, action, run, entity and details. */
+  q?: string;
+  action?: string;
+  actor?: string;
+  runId?: string;
+  /** Inclusive calendar-day bounds (YYYY-MM-DD, UTC) on the event timestamp. */
+  from?: string;
+  to?: string;
+}
+
+export const AUDIT_PAGE_MAX = 200;
+export const AUDIT_EXPORT_MAX = 5000;
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Escape LIKE wildcards so user text is matched literally. */
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** Build a WHERE clause whose first predicate is always the workspace. */
+function auditWhere(query: AuditQuery): { clause: string; args: unknown[] } {
+  if (typeof query.orgId !== "string" || query.orgId.length === 0) throw new Error("Workspace context is required");
+  const where: string[] = ["organization_id = ?"];
+  const args: unknown[] = [query.orgId];
+  if (query.action) {
+    where.push("action = ?");
+    args.push(query.action);
+  }
+  if (query.actor) {
+    where.push("actor = ?");
+    args.push(query.actor);
+  }
+  if (query.runId) {
+    where.push("run_id = ?");
+    args.push(query.runId);
+  }
+  if (query.from && ISO_DAY.test(query.from)) {
+    where.push("ts >= ?");
+    args.push(`${query.from}T00:00:00.000Z`);
+  }
+  if (query.to && ISO_DAY.test(query.to)) {
+    where.push("ts <= ?");
+    args.push(`${query.to}T23:59:59.999Z`);
+  }
+  const q = query.q?.trim().slice(0, 200);
+  if (q) {
+    const like = `%${escapeLike(q)}%`;
+    where.push(
+      "(actor LIKE ? ESCAPE '\\' OR action LIKE ? ESCAPE '\\' OR IFNULL(run_id, '') LIKE ? ESCAPE '\\' OR IFNULL(entity_id, '') LIKE ? ESCAPE '\\' OR details_json LIKE ? ESCAPE '\\')",
+    );
+    args.push(like, like, like, like, like);
+  }
+  return { clause: where.join(" AND "), args };
+}
+
+/** One page of a workspace's audit events, newest first. */
+export function searchAudit(db: DB, query: AuditQuery, page: { limit?: number; offset?: number } = {}): { events: AuditEvent[]; total: number } {
+  const { clause, args } = auditWhere(query);
+  const limit = Math.min(Math.max(Math.trunc(page.limit ?? 50), 1), AUDIT_PAGE_MAX);
+  const offset = Math.max(Math.trunc(page.offset ?? 0), 0);
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM audit_events WHERE ${clause}`).get(...args) as { n: number }).n;
+  const rows = db.prepare(`SELECT * FROM audit_events WHERE ${clause} ORDER BY seq DESC LIMIT ? OFFSET ?`).all(...args, limit, offset) as AuditRow[];
+  return { events: rows.map(toEvent), total };
+}
+
+/**
+ * Events for export: the most recent AUDIT_EXPORT_MAX matches, newest first.
+ * `truncated` is true when more events matched than were returned, so callers
+ * can say so instead of silently presenting a partial log as complete.
+ */
+export function exportAuditEvents(db: DB, query: AuditQuery): { events: AuditEvent[]; total: number; truncated: boolean } {
+  const { clause, args } = auditWhere(query);
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM audit_events WHERE ${clause}`).get(...args) as { n: number }).n;
+  const rows = db.prepare(`SELECT * FROM audit_events WHERE ${clause} ORDER BY seq DESC LIMIT ?`).all(...args, AUDIT_EXPORT_MAX) as AuditRow[];
+  return { events: rows.map(toEvent), total, truncated: total > rows.length };
+}
+
+/** Distinct filter values present in one workspace's audit log. */
+export function auditFacets(db: DB, orgId: string): { actions: string[]; actors: string[] } {
+  if (!orgId) throw new Error("Workspace context is required");
+  const actions = db.prepare("SELECT DISTINCT action FROM audit_events WHERE organization_id = ? ORDER BY action").pluck().all(orgId) as string[];
+  const actors = db.prepare("SELECT DISTINCT actor FROM audit_events WHERE organization_id = ? ORDER BY actor").pluck().all(orgId) as string[];
+  return { actions, actors };
+}
+
 /** Recompute one workspace's chain. Returns the first broken sequence number, if any. */
 export function verifyAuditChain(db: DB, orgId: string | null): { ok: boolean; events: number; brokenAt: number | null } {
   const rows = db.prepare("SELECT * FROM audit_events WHERE organization_id IS ? ORDER BY seq ASC").all(orgId) as AuditRow[];

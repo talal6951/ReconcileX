@@ -56,6 +56,8 @@ export interface RunSummaryDTO {
   modelVersion: string;
   bankFile: string;
   ledgerFile: string;
+  bankSha256: string;
+  ledgerSha256: string;
   metrics: StoredMetrics;
   progress: ReviewProgress;
 }

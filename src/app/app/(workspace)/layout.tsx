@@ -9,9 +9,11 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const ctx = await requireWorkspacePage();
   return (
     <>
-      <Sidebar user={{ name: ctx.userName, email: ctx.userEmail }} workspace={{ name: ctx.orgName, role: ctx.role }} />
-      <main className="min-h-screen lg:pl-64">
-        <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-8 md:py-8">{children}</div>
+      <div className="print:hidden">
+        <Sidebar user={{ name: ctx.userName, email: ctx.userEmail }} workspace={{ name: ctx.orgName, role: ctx.role }} />
+      </div>
+      <main className="min-h-screen lg:pl-64 print:pl-0">
+        <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-8 md:py-8 print:p-0">{children}</div>
       </main>
     </>
   );
