@@ -32,6 +32,16 @@ describe("chi-square p-values (regularised incomplete gamma)", () => {
 
 describe("Benford first-digit test", () => {
   const mk = (amounts: string[]): Transaction[] => amounts.map((a, i) => tx("bank", { amount: a, date: "2024-07-01", id: `B-${i}`, description: "X" }));
+  it("counts first significant digits exactly (from integer minor units, sign ignored)", () => {
+    // 0.05 → 5 cents → digit 5; 1,234.56 → 1; -9.99 → 9; 300.00 → 3; 0.10 → 1; 12 JPY-like whole → 1
+    const r = benfordTest(mk(["0.05", "1234.56", "-9.99", "300.00", "0.10", "12.00"]), 1);
+    expect(r.n).toBe(6);
+    expect(r.observed).toEqual([3, 0, 1, 0, 1, 0, 0, 0, 1]);
+    // Expected counts are n · log10(1 + 1/d).
+    r.expected.forEach((e, i) => expect(e).toBeCloseTo(6 * Math.log10(1 + 1 / (i + 1)), 12));
+    expect(BENFORD.reduce((s, p) => s + p, 0)).toBeCloseTo(1, 12);
+  });
+
   it("reports insufficient data below 100 amounts", () => {
     expect(benfordTest(mk(["12.00", "34.00"])).verdict).toBe("insufficient");
   });

@@ -140,7 +140,8 @@ export function InsightsPanel({ runId, tx }: { runId: string; tx: Record<string,
 }
 
 function BenfordCard({ title, b }: { title: string; b: Benford }) {
-  const max = Math.max(...b.observed.map((o) => o / Math.max(b.n, 1)), 0.302);
+  // Scale to the larger of the observed maximum and Benford's 30.1% for digit 1, with 10% headroom so nothing touches the top.
+  const max = Math.max(...b.observed.map((o) => o / Math.max(b.n, 1)), 0.302) * 1.1;
   return (
     <div className="rounded-xl border border-line p-4">
       <div className="flex items-center justify-between">
@@ -156,12 +157,13 @@ function BenfordCard({ title, b }: { title: string; b: Benford }) {
           </>
         )}
       </div>
-      <div className="mt-4 flex h-28 items-end gap-1.5" role="img" aria-label="Observed versus expected first-digit frequencies">
+      {/* Columns stretch to the full chart height so the bars' percentage heights resolve (an auto-height parent gives 0). */}
+      <div className="mt-4 flex h-28 items-stretch gap-1.5" role="img" aria-label="Observed versus expected first-digit frequencies">
         {b.observed.map((o, i) => {
           const obs = b.n ? o / b.n : 0;
           const exp = b.expected[i]! / Math.max(b.n, 1);
           return (
-            <div key={i} className="relative flex flex-1 flex-col items-center justify-end">
+            <div key={i} className="relative flex h-full flex-1 flex-col items-center justify-end">
               <div
                 className="w-full rounded-t bg-brand/80"
                 style={{ height: `${(obs / max) * 100}%` }}
