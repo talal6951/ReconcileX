@@ -138,7 +138,7 @@ export default async function Overview() {
         <Kpi label="Processing time" icon={<Clock className="h-4 w-4" />} value={ms(m.totalMs)} sub={`${int(m.bankCount + m.ledgerCount)} rows reconciled`} />
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_1fr]">
+      <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1.15fr_1fr]">
         <Card title="Needs your attention" subtitle="Open exceptions in the latest reconciliation" bodyClassName="p-0">
           {attention.length === 0 && p.pending === 0 ? (
             <p className="flex items-center gap-2 px-5 py-8 text-[14px] text-ok">
@@ -177,7 +177,7 @@ export default async function Overview() {
         </Card>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_1fr]">
+      <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1.15fr_1fr]">
         <Card title="Bank transactions by outcome" subtitle="Share of each reconciliation’s bank lines, at the time it ran">
           <CoverageChart data={bars} />
         </Card>
@@ -195,7 +195,7 @@ export default async function Overview() {
               <li key={r.id}>
                 <Link href={routes.reconciliation(r.id)} className="row-hover flex items-center justify-between gap-4 px-5 py-3.5">
                   <div className="min-w-0">
-                    <div className="truncate text-[13.5px] font-medium text-ink">{r.name}</div>
+                    <div className="text-[13.5px] font-medium text-ink sm:truncate">{r.name}</div>
                     <div className="text-[12px] text-ink-3">{dateTime(r.createdAt)}</div>
                   </div>
                   <div className="tabular shrink-0 text-right text-[12px]">
@@ -221,12 +221,12 @@ function AttentionRow({ href, count, title, hint, tone }: { href: string; count:
   return (
     <li>
       <Link href={href} className="row-hover flex items-center gap-4 px-5 py-4">
-        <span className={`tabular grid h-9 min-w-9 place-items-center rounded-lg px-2 text-[13px] font-semibold ${tone === "warn" ? "bg-warn-soft text-warn" : "bg-bad-soft text-bad"}`}>
+        <span className={`tabular grid h-9 min-w-12 shrink-0 place-items-center rounded-lg px-2 text-[13px] font-semibold ${tone === "warn" ? "bg-warn-soft text-warn" : "bg-bad-soft text-bad"}`}>
           {int(count)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-ink">{title}</span>
-          <span className="block truncate text-[12px] text-ink-3">{hint}</span>
+          <span className="block text-[13.5px] font-medium text-ink sm:truncate">{title}</span>
+          <span className="block text-[12px] text-ink-3 sm:truncate">{hint}</span>
         </span>
         <ArrowRight className="h-4 w-4 shrink-0 text-ink-3" />
       </Link>

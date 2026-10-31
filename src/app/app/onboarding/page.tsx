@@ -11,7 +11,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const { demo } = await searchParams;
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="flex h-16 items-center bg-navy-900 px-6">
+      <header className="flex h-16 items-center bg-night-900 px-6">
         <Wordmark href={routes.home} />
       </header>
       <main className="flex justify-center px-4 py-12 md:py-20">

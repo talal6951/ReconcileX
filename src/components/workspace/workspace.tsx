@@ -186,9 +186,10 @@ export function Workspace({ runId, initialTab = "review", initialExceptionType }
         <Kpi label="Rows" value={int(s.metrics.bankCount + s.metrics.ledgerCount)} sub={`${int(s.metrics.candidatePairsScored)} pairs scored`} />
       </div>
 
-      <div className="card mt-4">
-        <div className="flex flex-col gap-3 border-b border-line px-4 pt-3 md:flex-row md:items-end md:justify-between">
-          <nav className="-mb-px flex gap-5 overflow-x-auto">
+      <div className="card @container mt-4">
+        {/* Tabs and filters share a row only when the card itself is wide enough (not the window: the side panel narrows it). */}
+        <div className="flex flex-col gap-3 border-b border-line px-4 pt-3 @4xl:flex-row @4xl:items-end @4xl:justify-between">
+          <nav className="-mb-px flex shrink-0 flex-wrap gap-x-5 gap-y-1">
             {(
               [
                 ["review", "Review queue", reviewCount],

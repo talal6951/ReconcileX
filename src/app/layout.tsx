@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Reconcile bank statements against your ledger in seconds. Deterministic matching, explainable machine learning, evidence-based investigations and a complete audit trail.",
 };
 
-export const viewport: Viewport = { themeColor: "#0b1a33" };
+export const viewport: Viewport = { themeColor: "#0b0b0c" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

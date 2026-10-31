@@ -503,7 +503,7 @@ export function SideImport({ side, onConfirmed, onLoaded }: { side: Side; onConf
                     setFilter(f);
                     setPage(0);
                   }}
-                  className={clsx("rounded-md px-2.5 py-1 text-[12px] font-semibold", filter === f ? "bg-navy-900 text-white" : "text-ink-3 hover:bg-neutral-soft")}
+                  className={clsx("rounded-md px-2.5 py-1 text-[12px] font-semibold", filter === f ? "bg-night-900 text-white" : "text-ink-3 hover:bg-neutral-soft")}
                 >
                   {l}
                 </button>
@@ -595,7 +595,7 @@ export function SideImport({ side, onConfirmed, onLoaded }: { side: Side; onConf
       )}
 
       {/* Confirmation */}
-      <div className={clsx("border-t border-line p-5", confirmed ? "bg-ok-soft" : "bg-[#fafbfd]")}>
+      <div className={clsx("border-t border-line p-5", confirmed ? "bg-ok-soft" : "bg-[#FBFAF8]")}>
         <label className={clsx("flex items-start gap-3 text-[13px]", !canConfirm && "opacity-60")}>
           <input type="checkbox" className="mt-0.5 h-4 w-4" disabled={!canConfirm} checked={confirmed} onChange={(e) => toggleConfirm(e.target.checked)} aria-label={`Confirm ${title} transactions`} />
           <span>

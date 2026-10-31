@@ -132,18 +132,18 @@ export function ScenarioLab() {
         <Card title="Projected cash" subtitle={mc ? "Expected path, with the range where 80% of simulations fall (10th–90th percentile)" : "Expected path"}>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={chart} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#eef1f6" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6b7a90" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6b7a90" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={56} />
+              <CartesianGrid vertical={false} stroke="#EFEDE8" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6E6C66" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#6E6C66" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={56} />
               <Tooltip
                 formatter={(v) => (Array.isArray(v) ? `${whole(Number(v[0]))} – ${whole(Number(v[1]))}` : whole(Number(v)))}
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e3e8f0" }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E6E3DC" }}
               />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
               <ReferenceLine y={0} stroke="#c8322f" strokeDasharray="4 3" />
-              {mc && <Area dataKey="band" name="10th–90th percentile" stroke="none" fill="#2458e6" fillOpacity={0.12} isAnimationActive={false} />}
-              {mc && <Line dataKey="median" name="Median simulation" stroke="#2458e6" strokeDasharray="5 4" dot={false} strokeWidth={1.5} isAnimationActive={false} />}
-              <Line dataKey="expected" name="Expected path" stroke="#0e1a2b" strokeWidth={2} dot={false} isAnimationActive={false} />
+              {mc && <Area dataKey="band" name="10th–90th percentile" stroke="none" fill="#C8A96A" fillOpacity={0.28} isAnimationActive={false} />}
+              {mc && <Line dataKey="median" name="Median simulation" stroke="#8C6D35" strokeDasharray="5 4" dot={false} strokeWidth={1.5} isAnimationActive={false} />}
+              <Line dataKey="expected" name="Expected path" stroke="#121214" strokeWidth={2} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>

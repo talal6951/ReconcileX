@@ -44,17 +44,17 @@ function SiteHeader() {
     <header className="absolute inset-x-0 top-0 z-30">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:px-8">
         <Wordmark />
-        <nav className="hidden items-center gap-8 text-[13.5px] font-medium text-slate-300 md:flex">
+        <nav className="hidden items-center gap-8 text-[13.5px] font-medium text-stone-300 md:flex">
           <a href="#product" className="hover:text-white">Product</a>
           <a href="#how" className="hover:text-white">How it works</a>
           <a href="#trust" className="hover:text-white">Security</a>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href={routes.signIn} className="hidden rounded-lg px-3 py-2 text-[13.5px] font-medium text-slate-200 hover:text-white sm:block">
+          <Link href={routes.signIn} className="hidden rounded-lg px-3 py-2 text-[13.5px] font-medium text-stone-200 hover:text-white sm:block">
             Sign in
           </Link>
-          <Link href={routes.signUp} className="rounded-lg bg-white px-3.5 py-2 text-[13.5px] font-semibold text-navy-900 shadow-sm hover:bg-slate-100">
-            Get started
+          <Link href={routes.signUp} className="rounded-lg bg-white px-3.5 py-2 text-[13.5px] font-semibold text-night-900 shadow-sm hover:bg-stone-100">
+            Create an account
           </Link>
         </div>
       </div>
@@ -64,41 +64,41 @@ function SiteHeader() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-navy-950 pt-32 pb-24 md:pt-40 md:pb-32">
+    <section className="relative overflow-hidden bg-night-950 pt-32 pb-24 md:pt-40 md:pb-32 lg:pb-48">
       {/* Grid + glow */}
       <div
         aria-hidden
         className="absolute inset-0 opacity-[0.35]"
         style={{
-          backgroundImage: "linear-gradient(rgba(143,176,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(143,176,255,0.08) 1px, transparent 1px)",
+          backgroundImage: "linear-gradient(rgba(200,169,106,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(200,169,106,0.05) 1px, transparent 1px)",
           backgroundSize: "56px 56px",
           maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 100%)",
         }}
       />
-      <div aria-hidden className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[#2458e6] opacity-25 blur-[140px]" />
+      <div aria-hidden className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[#C8A96A] opacity-[0.10] blur-[140px]" />
       <div className="relative mx-auto max-w-7xl px-5 md:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[12px] font-medium text-slate-300 backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[12px] font-medium text-stone-300 backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C8A96A]" />
             Reconciliation engine · deterministic rules + explainable ML
           </div>
           <h1 className="text-[40px] leading-[1.05] font-semibold tracking-[-0.03em] text-white md:text-[64px]">
             Close the books on
             <br />
-            <span className="bg-gradient-to-r from-[#9db8ff] via-white to-[#9db8ff] bg-clip-text text-transparent">every transaction.</span>
+            <span className="bg-gradient-to-r from-[#D9C08F] via-white to-[#D9C08F] bg-clip-text text-transparent">every transaction.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-slate-300 md:text-[18px]">
+          <p className="mx-auto mt-6 max-w-2xl text-[16px] leading-relaxed text-stone-300 md:text-[18px]">
             Reconcile X matches bank statements to your ledger in seconds, explains every suggestion, investigates every exception with real evidence — and never approves anything it can’t prove.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href={routes.signUp} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#3b6cff] px-5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(59,108,255,0.8)] hover:bg-[#2f5ff0]">
-              Get started free <ArrowRight className="h-4 w-4" />
+            <Link href={routes.signUp} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#C8A96A] px-5 text-[14px] font-semibold text-night-950 shadow-[0_8px_24px_-12px_rgba(200,169,106,0.55)] hover:bg-[#D4B97F]">
+              Create an account <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href={`${routes.signUp}?demo=1`} className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 text-[14px] font-semibold text-white backdrop-blur hover:bg-white/10">
               Try the demo
             </Link>
           </div>
-          <p className="mt-4 text-[12px] text-slate-400">Demo runs on synthetic data. No bank credentials required.</p>
+          <p className="mt-4 text-[12px] text-stone-400">Demo runs on synthetic data. No bank credentials required.</p>
         </div>
         <ProductPreview />
       </div>
@@ -118,23 +118,42 @@ function ProductPreview() {
   const toneCls = { ok: "bg-emerald-400/15 text-emerald-300", warn: "bg-amber-400/15 text-amber-300", info: "bg-blue-400/15 text-blue-300", bad: "bg-rose-400/15 text-rose-300" };
   return (
     <div className="relative mx-auto mt-16 max-w-5xl md:mt-20">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-[0_40px_120px_-30px_rgba(36,88,230,0.55)] backdrop-blur">
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0c1830]">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.7)] backdrop-blur">
+        <div className="overflow-hidden rounded-xl border border-white/10 bg-[#111113]">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-3">
               <LogoMark className="h-6 w-6" />
               <span className="text-[13px] font-semibold text-white">Operating account · October</span>
-              <span className="hidden rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-slate-400 sm:inline">Synthetic sample</span>
+              <span className="hidden rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-stone-400 sm:inline">Synthetic sample</span>
             </div>
-            <div className="hidden gap-4 text-[11.5px] text-slate-400 md:flex">
+            <div className="hidden gap-4 text-[11.5px] text-stone-400 md:flex">
               <span><b className="text-emerald-300">Verified</b> by rule</span>
               <span><b className="text-amber-300">Review</b> by people</span>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          {/* Phones: one stacked card per bank line instead of a sideways-scrolling table. */}
+          <ul className="divide-y divide-white/5 md:hidden">
+            {rows.map((r) => (
+              <li key={r.b} className="px-4 py-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 text-[12.5px] font-medium text-stone-200">{r.b}</span>
+                  <span className="tabular shrink-0 text-[12.5px] text-stone-200">{r.a}</span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate text-[12px] text-stone-400">{r.l}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {r.score !== "—" && <span className="tabular text-[11px] text-stone-500">{r.score}</span>}
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneCls[r.tone]}`}>{r.s}</span>
+                  </span>
+                </div>
+              </li>
+            ))}
+            <li className="px-4 py-2.5 text-[11px] text-stone-500">Synthetic sample data</li>
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-left text-[12.5px]">
               <thead>
-                <tr className="text-[10.5px] tracking-wider text-slate-500 uppercase">
+                <tr className="text-[10.5px] tracking-wider text-stone-500 uppercase">
                   <th className="px-4 py-2.5 font-medium">Bank statement</th>
                   <th className="px-4 py-2.5 text-right font-medium">Amount</th>
                   <th className="px-2 py-2.5 text-center font-medium">Score</th>
@@ -146,11 +165,11 @@ function ProductPreview() {
               <tbody className="tabular">
                 {rows.map((r) => (
                   <tr key={r.b} className="border-t border-white/5">
-                    <td className="px-4 py-3 font-medium text-slate-200">{r.b}</td>
-                    <td className="px-4 py-3 text-right text-slate-200">{r.a}</td>
-                    <td className="px-2 py-3 text-center text-[11px] text-slate-400">{r.score}</td>
-                    <td className="px-4 py-3 text-slate-300">{r.l}</td>
-                    <td className="px-4 py-3 text-right text-slate-300">{r.la}</td>
+                    <td className="px-4 py-3 font-medium text-stone-200">{r.b}</td>
+                    <td className="px-4 py-3 text-right text-stone-200">{r.a}</td>
+                    <td className="px-2 py-3 text-center text-[11px] text-stone-400">{r.score}</td>
+                    <td className="px-4 py-3 text-stone-300">{r.l}</td>
+                    <td className="px-4 py-3 text-right text-stone-300">{r.la}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneCls[r.tone]}`}>{r.s}</span>
                     </td>
@@ -161,13 +180,13 @@ function ProductPreview() {
           </div>
         </div>
       </div>
-      <div className="absolute -right-4 -bottom-10 hidden w-72 rounded-xl border border-white/10 bg-[#0f1f3d]/95 p-4 text-left shadow-2xl backdrop-blur lg:block">
-        <div className="text-[10px] font-semibold tracking-[0.14em] text-[#8fb0ff] uppercase">Investigation</div>
+      <div className="absolute -right-4 -bottom-36 hidden w-72 rounded-xl border border-white/10 bg-[#18181B]/95 p-4 text-left shadow-2xl backdrop-blur lg:block">
+        <div className="text-[10px] font-semibold tracking-[0.14em] text-[#D9C08F] uppercase">Investigation</div>
         <p className="mt-1.5 text-[13px] font-medium text-white">Bank amount 0.48% lower than invoice</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">Consistent with a processing fee netted from the payment. Evidence: E1, E2, E4.</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-stone-400">Consistent with a processing fee netted from the payment. Evidence: E1, E2, E4.</p>
         <div className="mt-3 flex gap-2">
           <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-300">Approve</span>
-          <span className="rounded-md bg-white/5 px-2 py-1 text-[11px] font-semibold text-slate-300">Reject</span>
+          <span className="rounded-md bg-white/5 px-2 py-1 text-[11px] font-semibold text-stone-300">Reject</span>
         </div>
       </div>
     </div>
@@ -281,19 +300,19 @@ function HowItWorks() {
     { n: "04", t: "Approve & export", d: "Approve or reject with a reason, resolve exceptions, and export the report and audit trail." },
   ];
   return (
-    <section id="how" className="scroll-mt-16 bg-navy-950 py-20 text-white md:py-28">
+    <section id="how" className="scroll-mt-16 bg-night-950 py-20 text-white md:py-28">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <div className="text-[12px] font-semibold tracking-[0.14em] text-[#8fb0ff] uppercase">How it works</div>
+          <div className="text-[12px] font-semibold tracking-[0.14em] text-[#D9C08F] uppercase">How it works</div>
           <h2 className="mt-3 text-[30px] leading-tight font-semibold tracking-[-0.02em] md:text-[40px]">From two files to a signed-off reconciliation</h2>
         </div>
         <ol className="mt-14 grid gap-4 md:grid-cols-4">
           {steps.map((s, i) => (
             <li key={s.n} className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <div className="font-mono text-[12px] text-[#8fb0ff]">{s.n}</div>
+              <div className="font-mono text-[12px] text-[#D9C08F]">{s.n}</div>
               <h3 className="mt-3 text-[17px] font-semibold">{s.t}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-slate-400">{s.d}</p>
-              {i < steps.length - 1 && <ArrowRight className="absolute top-6 -right-3 hidden h-5 w-5 text-slate-600 md:block" />}
+              <p className="mt-2 text-[13.5px] leading-relaxed text-stone-400">{s.d}</p>
+              {i < steps.length - 1 && <ArrowRight className="absolute top-6 -right-3 hidden h-5 w-5 text-stone-600 md:block" />}
             </li>
           ))}
         </ol>
@@ -324,8 +343,8 @@ function InvestigationShowcase() {
           </ul>
         </div>
         <div className="card overflow-hidden p-0">
-          <div className="border-b border-line bg-navy-900 px-5 py-4">
-            <div className="text-[10px] font-semibold tracking-[0.14em] text-[#8fb0ff] uppercase">Automated investigation · E-00214</div>
+          <div className="border-b border-line bg-night-900 px-5 py-4">
+            <div className="text-[10px] font-semibold tracking-[0.14em] text-[#D9C08F] uppercase">Automated investigation · E-00214</div>
             <p className="mt-1 text-[14px] font-medium text-white">Ledger 1,240.00 USD on 2024-08-29 has no bank counterpart</p>
           </div>
           <div className="space-y-3 p-5">
@@ -384,13 +403,13 @@ function FinalCta() {
   return (
     <section className="py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-5 md:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-navy-950 px-6 py-14 text-center md:px-16">
-          <div aria-hidden className="absolute -top-24 left-1/2 h-72 w-[600px] -translate-x-1/2 rounded-full bg-[#2458e6] opacity-30 blur-[100px]" />
+        <div className="relative overflow-hidden rounded-3xl bg-night-950 px-6 py-14 text-center md:px-16">
+          <div aria-hidden className="absolute -top-24 left-1/2 h-72 w-[600px] -translate-x-1/2 rounded-full bg-[#C8A96A] opacity-[0.12] blur-[100px]" />
           <h2 className="relative text-[28px] leading-tight font-semibold tracking-[-0.02em] text-white md:text-[38px]">See it reconcile in under a minute.</h2>
-          <p className="relative mx-auto mt-4 max-w-xl text-[15px] text-slate-300">Create a workspace, load the synthetic demo dataset, and walk through matching, investigation and approval end to end.</p>
+          <p className="relative mx-auto mt-4 max-w-xl text-[15px] text-stone-300">Create a workspace, load the synthetic demo dataset, and walk through matching, investigation and approval end to end.</p>
           <div className="relative mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href={routes.signUp} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 text-[14px] font-semibold text-navy-900 hover:bg-slate-100">
-              Get started <ArrowRight className="h-4 w-4" />
+            <Link href={routes.signUp} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 text-[14px] font-semibold text-night-900 hover:bg-stone-100">
+              Create an account <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href={routes.signIn} className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 px-5 text-[14px] font-semibold text-white hover:bg-white/5">
               Sign in

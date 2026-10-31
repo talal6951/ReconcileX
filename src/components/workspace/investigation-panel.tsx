@@ -151,7 +151,7 @@ export function InvestigationPanel({
         )}
       </div>
 
-      <footer className="border-t border-line bg-[#fafbfd] px-5 py-4">
+      <footer className="border-t border-line bg-[#FBFAF8] px-5 py-4">
         <div className="mb-2">
           <input className="input" placeholder="Reason for your decision (required, recorded in the audit trail)" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Decision reason" maxLength={1000} />
         </div>
@@ -304,8 +304,8 @@ function Findings({ inv }: { inv: Investigation }) {
   const evidenceById = new Map(inv.evidence.map((e) => [e.id, e]));
   return (
     <section className="space-y-4">
-      <div className="rounded-lg bg-navy-900 p-3.5 text-white">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8fb0ff]">Automated investigation</div>
+      <div className="rounded-lg bg-night-900 p-3.5 text-white">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#D9C08F]">Automated investigation</div>
         <p className="mt-1 text-[13.5px] font-medium leading-snug">{inv.headline}</p>
       </div>
       <div>
@@ -343,7 +343,7 @@ function Findings({ inv }: { inv: Investigation }) {
           ))}
         </ul>
       </div>
-      <div className="rounded-lg border border-[#cfe0ff] bg-brand-soft p-3">
+      <div className="rounded-lg border border-[#E8DCC2] bg-brand-soft p-3">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-brand">Recommended next step</div>
         <p className="mt-1 text-[12.5px] text-ink">{inv.recommendedAction}</p>
       </div>
