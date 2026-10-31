@@ -29,7 +29,7 @@ Nothing uncertain is ever approved automatically. Reconcile X never moves money 
 ## What you can do with it
 
 1. **Upload** a bank statement and a ledger export — CSV, Excel (.xlsx) or a text-based PDF.
-2. **Review** the extracted transactions: columns and currency are detected automatically, every row is validated, the statement's opening + transactions = closing balance is checked, and you confirm before anything is saved.
+2. **Review** the extracted transactions: columns and currency are detected automatically when the file makes them unambiguous (otherwise you're asked), every row is validated, the statement's opening + transactions = closing balance is checked, and you confirm before anything is saved.
 3. **Results**: approve or reject suggested matches (with a reason), investigate exceptions, see statistical insights, export a report.
 
 Plus: a **Scenario Lab** for "what if customers pay 30 days later?", a **How it works** page with the model's real weights and evaluation, and an **Audit trail** you can search and verify.
@@ -49,17 +49,17 @@ Plus: a **Scenario Lab** for "what if customers pay 30 days later?", a **How it 
 
 ### Statistics (`src/engine/anomaly.ts`, `src/engine/scenario.ts`)
 - **Unusual amounts**: robust modified z-score (Iglewicz & Hoaglin) on log amounts within each counterparty's own history, using the median and median absolute deviation.
-- **Benford first-digit test**: Pearson χ² goodness of fit with an exact p-value from the regularised incomplete gamma function.
+- **Benford first-digit test**: Pearson χ² goodness of fit; the p-value is computed numerically from the regularised incomplete gamma function (checked against standard table values).
 - **Scenario Lab**: deterministic cash projection plus a seeded Monte Carlo simulation reporting P10/P50/P90 bands and the probability of a cash shortfall with its standard error.
 
 ### Statement import (`src/server/imports`)
 - File type determined from the **bytes**, not the extension. `.xlsx` is checked for zip bombs and macros before parsing; legacy `.xls`, scanned/encrypted PDFs and unrecognised layouts are rejected with a plain explanation.
 - **PDF tables** are reconstructed from text positions (Mozilla pdf.js): a value is assigned to a column only if it overlaps *and* aligns with that column's header; anything ambiguous is flagged, never guessed. No OCR — misread digits in amounts can't be ruled out.
-- **Signed previews**: the server returns the extracted rows with an HMAC signature bound to the workspace, user, file hash and the exact rows. Saving requires explicit confirmation, and any change to an amount after extraction is rejected.
+- **Signed previews**: the server returns the extracted rows with an HMAC signature bound to the workspace, user, statement side, file hash and the exact rows, valid for 30 minutes. Saving requires explicit confirmation, and any change to an amount after extraction is rejected.
 
 ### Platform (`src/app`, `src/server`)
 - **Next.js 15 (App Router) + TypeScript (strict) + Tailwind CSS 4**, SQLite via `better-sqlite3`.
-- **Authentication & company workspaces**: Better Auth (email/password, organization plugin). Every page and API route verifies the session *and* re-checks workspace membership in the database; every query is scoped to the workspace.
+- **Authentication & company workspaces**: Better Auth (email/password, organization plugin). Every workspace page and data API route verifies the session *and* re-checks workspace membership in the database; every query is scoped to the workspace.
 - **Audit trail**: append-only (database triggers block edits and deletes) and SHA-256 hash-chained per workspace, so tampering is detectable.
 - **Exports**: CSV/JSON with spreadsheet formula-injection protection.
 
@@ -86,7 +86,7 @@ All figures come from committed evaluation artifacts (`src/engine/model/evaluati
 
 - **Synthetic evaluation only.** I wrote the data generator, so the patterns the model learns (fees, typos, delays, splits) are patterns I put there. The high scores show the system behaves as designed on a well-specified problem; real statements contain patterns the generator doesn't. That is why only rule-verified matches are confirmed automatically.
 - **Linear model.** Logistic regression can't express every interaction (e.g. "same invoice number but only 40% of the amount" — handled instead by a structural rule for reference-linked splits).
-- **Benford's law** doesn't apply to every dataset — the synthetic demo data itself *deviates* (p ≈ 0.006) because about 15% of its amounts are deliberately round numbers.
+- **Benford's law** doesn't apply to every dataset — the synthetic demo data itself *deviates* (p ≈ 0.006 for the bank side, 0.008 for the ledger) because about 15% of its amounts are deliberately round numbers.
 - **Anomaly benchmark** matches the detector's assumptions (stable spending per counterparty). On my own benchmark a threshold of 4.0 scores a higher F1 than 3.5; I kept the published 3.5 rather than tuning to data I generated.
 - **PDF import** supports text-based statements with a clear header row; other layouts are rejected. No email delivery yet (password reset, invitations), no role-based approval limits, single-node SQLite.
 
@@ -101,12 +101,14 @@ npm run db:migrate                # creates the local SQLite database in ./data
 npm run dev -- -p 3001 -H 127.0.0.1   # http://127.0.0.1:3001 (matches BETTER_AUTH_URL in .env.example)
 ```
 
+Recent npm versions may warn that install scripts for `better-sqlite3`, `esbuild` and similar packages were not run. That is expected: they ship prebuilt binaries and work without those scripts.
+
 Sign up, create a workspace and choose **Explore with demo data**, or download the synthetic sample statement (PDF/Excel) and ledger (CSV) from *New reconciliation* and upload them.
 
 ### Tests and evaluation
 
 ```bash
-npm test                 # 147 unit + integration tests
+npm test                 # 148 unit + integration tests
 npm run typecheck && npm run lint
 npm run train            # retrain the model and regenerate evaluation.json
 npm run eval:anomaly     # re-measure the anomaly detector

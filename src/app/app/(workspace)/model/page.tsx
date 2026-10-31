@@ -197,7 +197,7 @@ export default async function ModelPage() {
               Within each counterparty’s own history (≥ {anomalyEvaluation.minGroupSize} payments), z = 0.6745·(x − median)/MAD on log amounts. Median and MAD are used because the mean and standard deviation are pulled towards the very outliers being searched for. |z| &gt; {anomalyEvaluation.defaultThreshold} is flagged.
             </p>
             <h3 className="mt-4 font-semibold text-ink">First-digit test — Benford’s law</h3>
-            <p className="mt-1">Pearson χ² with 8 degrees of freedom and an exact p-value. A dataset-level indicator only: many legitimate datasets (fixed prices, round amounts) don’t follow Benford.</p>
+            <p className="mt-1">Pearson χ² with 8 degrees of freedom; p-value computed numerically. A dataset-level indicator only: many legitimate datasets (fixed prices, round amounts) don’t follow Benford.</p>
           </div>
           <div>
             <div className="text-[12px] text-ink-3">

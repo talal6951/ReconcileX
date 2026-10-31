@@ -28,3 +28,15 @@ data/backups/
 *.p12
 *.pfx
 .next-smoke/
+
+# Never commit financial documents. Sample statements are generated at runtime, not stored.
+*.pdf
+*.csv
+*.xlsx
+*.xls
+
+# Logs, tool caches and temporary files.
+*.log
+*.tmp
+.vercel/
+.turbo/

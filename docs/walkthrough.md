@@ -59,7 +59,7 @@ Drag **Customers pay after** from 45 to 90 days.
 - 276 of 278 split payments / aggregated payouts found exactly.
 - Anomaly detector: precision 90.6%, recall 99.1% on 349 injected anomalies.
 - ~3,150 rows reconciled in about 0.3 seconds.
-- 147 automated tests; a live security test with 69 checks covering sign-in, company isolation and import tampering.
+- 148 automated tests; a live security test with 69 checks covering sign-in, company isolation and import tampering.
 
 Always add: *"measured on synthetic data I generated, not on real bank statements."*
 

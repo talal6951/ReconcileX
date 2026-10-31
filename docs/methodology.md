@@ -82,7 +82,7 @@ For naturally occurring amounts spanning several orders of magnitude, the leadin
 
 > χ² = Σ_{d=1..9} (O_d − E_d)² / E_d,  8 degrees of freedom
 
-The p-value is the upper tail of the χ² distribution, computed exactly as the regularised upper incomplete gamma function Q(4, χ²/2) (series / continued-fraction evaluation, verified against table values: χ²₈ = 15.507 → p = 0.05). At least 100 amounts are required. The result is a **dataset-level indicator only**: the synthetic demo data deviates (p ≈ 0.006) because ~15% of its amounts are deliberately round — exactly the kind of legitimate reason a real dataset might deviate too.
+The p-value is the upper tail of the χ² distribution, computed numerically as the regularised upper incomplete gamma function Q(4, χ²/2) (series / continued-fraction evaluation, verified against table values: χ²₈ = 15.507 → p = 0.05). At least 100 amounts are required. The result is a **dataset-level indicator only**: the synthetic demo data deviates (p ≈ 0.006 for the bank side, 0.008 for the ledger) because ~15% of its amounts are deliberately round — exactly the kind of legitimate reason a real dataset might deviate too.
 
 ## 7. Scenario Lab
 
@@ -124,7 +124,7 @@ The generator and the features were designed by the same person, from the same u
 ```bash
 npm run train          # retrains the model; writes src/engine/model/weights.json + evaluation.json
 npm run eval:anomaly   # writes src/engine/model/anomaly-evaluation.json
-npm test               # 147 tests, including exact-value checks of the statistics
+npm test               # 148 tests, including exact-value checks of the statistics
 ```
 
 ## References

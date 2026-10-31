@@ -13,7 +13,7 @@ import type { Side, Transaction } from "./types";
  *    is used (z = (x − median) / (1.253314 · MeanAD)); if both are 0 the group is constant.
  *
  * 2. First-digit test (Benford's law): Pearson chi-square goodness of fit, 8 degrees of
- *    freedom, exact p-value from the regularised upper incomplete gamma function.
+ *    freedom; p-value computed numerically from the regularised upper incomplete gamma function.
  *    A dataset-level indicator only — many legitimate datasets do not follow Benford.
  *
  * Amounts are converted to floating point ONLY for these statistics; no money
